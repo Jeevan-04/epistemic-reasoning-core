@@ -261,7 +261,7 @@ Epistemic sterility: The hypothetical never pollutes the actual belief store.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/epistemic-reasoning-core.git
+git clone https://github.com/Jeevan-04/epistemic-reasoning-core.git
 cd epistemic-reasoning-core
 
 # No dependencies required
@@ -569,9 +569,9 @@ If you use EDRA in your research:
 ```bibtex
 @software{edra2024,
   title={EDRA: Epistemically Disciplined Reasoning Architecture},
-  author={[Your Name]},
+  author={[Jeevan Naidu]},
   year={2024},
-  url={https://github.com/yourusername/epistemic-reasoning-core},
+  url={https://github.com/Jeevan-04/epistemic-reasoning-core},
   note={A refusal-first epistemic reasoning system}
 }
 ```
