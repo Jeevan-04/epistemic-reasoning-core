@@ -29,6 +29,8 @@ I think that's backwards.
 
 This is EDRA. It's a symbolic reasoning core that enforces epistemic discipline.
 
+**A note on design philosophy:** EDRA is not a model of human cognition or moral reasoning. Its design is inspired by epistemic aspects of human reasoning—specifically the ability to withhold judgment, track justification, and respect counterevidence—but these inspirations are conceptual rather than psychological or neuroscientific. What EDRA demonstrates is not mind simulation, but **epistemic governance**: the separation of epistemic responsibility from task performance. Most systems ask "Can I produce an answer?" EDRA asks "Am I epistemically allowed to answer?"
+
 ---
 
 ## How I'm Approaching the Problem
@@ -578,6 +580,8 @@ The key difference: ACT-R and SOAR model *how humans think*. EDRA models *how to
 **Compositional Semantics**: Teaching EDRA about compositional patterns ("X objects have properties of X") would expand coverage without sacrificing grounding.
 
 **Natural Language Improvement**: Replace regex parsing with proper NLP. This would improve robustness on varied inputs.
+
+**Normative Reasoning Integration**: Future extensions could integrate normative or value-based layers atop EDRA's epistemic core, allowing moral or policy reasoning systems to operate over beliefs that are explicitly grounded and justified.
 
 ### Research Questions
 
