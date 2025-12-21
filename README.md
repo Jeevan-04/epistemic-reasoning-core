@@ -3,10 +3,12 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> <a href="https://github.com/Jeevan-04/epistemic-reasoning-core/blob/main/Details.pdf">
+<a href="https://github.com/Jeevan-04/epistemic-reasoning-core/blob/main/Details.pdf">
   <img src="https://github.com/user-attachments/assets/b1359060-3d2c-4a78-a4e5-8cc1e0b3a326" width="400">
 </a>
 
+
+click here ↑
 
 ---
 
