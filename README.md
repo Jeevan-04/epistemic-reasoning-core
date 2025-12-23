@@ -7,7 +7,7 @@
   <img src="https://github.com/user-attachments/assets/b1359060-3d2c-4a78-a4e5-8cc1e0b3a326" width="400">
 </a>
 
-**Click here for detailed paper 📄 ↑** -->
+**Click here for detailed Report 📄 ↑** -->
 
 > A reasoning system that knows when to say "I don't know"
 
