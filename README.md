@@ -39,6 +39,3 @@ Episteme rejects the "probabilistic soup" approach. It asserts that:
 *   $A \to B$ is a structural claim, not a statistical correlation.
 *   Conflicts are features of a complex world, not errors to be averaged out.
 *   System hygiene (validating inputs vs logic) is paramount.
-
-## License
-MIT
