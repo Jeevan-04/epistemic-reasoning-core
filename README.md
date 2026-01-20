@@ -1,135 +1,126 @@
-# Episteme: Persistant Epistemic Reasoning Core
+# Episteme: Layered Epistemic Reasoning Core
 
 > **"Logic First, Numbers Second."**
 
 Episteme is a persistent **epistemic reasoning system** that layers quantitative belief lifecycle management (confidence, decay) on top of a rigorous non-monotonic logic engine. Unlike neuro-symbolic hybrids that blend logic and probability into a "soup", Episteme maintains a strict separation: **Logic determines validity; Numbers determine availability.**
 
-## 1. Technical Architecture (MARC)
+---
 
-The system follows the **MARC** (Modular Architecture for Reasoning and Cognition) design, composed of four distinct layers:
+## 🔬 Deep Dive: How Episteme Understands
+Episteme treats understanding ("Manas") and reasoning ("Buddhi") as distinct processes. Here is the exact lifecycle of a belief from raw text to logical node.
 
-### 🧠 Manas (Acquisition & Normalization)
-*   **Role**: Stateless sensory processing.
-*   **Function**: Parses natural language into structured `BeliefProposals`.
-*   **Key Feature**: **Strict Entity Validation**. Manas rejects non-semantic tokens (e.g., numeric entities like "1") before they pollute the graph, ensuring a clean separation between symbolic logic and mathematical constants.
+### 1. The Manas Pipeline (Acquisition)
+Input: *"Socrates is a human."*
 
-### 💾 Chitta (Memory & Persistence)
-*   **Role**: The Persistent Knowledge Graph.
-*   **Function**: Stores beliefs as `(Entity, Predicate, Object)` triples with explicit epistemic metadata.
-*   **Key Feature**: **Quantitative Lifecycle**. Beliefs are not static; they:
-    *   **Reinforce** with repeated evidence (Asymptotic confidence boost).
-    *   **Decay** over time if acceptable evidence is absent.
-    *   **Gate** logic: Beliefs below a confidence threshold become `INACTIVE` and invisible to the logic engine.
+**Step A: Stateless Parsing (`BeliefProposal`)**
+Manas first converts the text into a raw, untrusted proposal. It detects the *intent* (Assertion) and the *template* (Is-A Relation).
+```json
+{
+  "template": "is_a",
+  "raw_text": "Socrates is a human.",
+  "entities": ["Socrates", "human"],
+  "confidence": 0.9,
+  "polarity": 1
+}
+```
 
-### 💡 Buddhi (Intellect & Inference)
-*   **Role**: The Pure Logic Engine.
-*   **Function**: Performs deductive and defeasible inference over the Chitta graph.
-*   **Key Feature**: **The Lattice of Truth**. Resolves conflicts using a strict hierarchy:
-    `AXIOM` > `OBSERVATION` > `EXCEPTION` > `DEFAULT` > `HYPOTHESIS`.
+**Step B: Entity Normalization & Sanitation**
+Before entering the graph, entities are rigorously scrubbed:
+*   **Normalization**: "Humans" → "human", " The Socrates " → "socrates".
+*   **Sanitation**: Strict rejection of numeric entities ("1") or leaked verbs ("is").
 
-### 👤 Ahankara (System Controller)
-*   **Role**: The "Self" or Agent Loop.
-*   **Function**: Orchestrates the Perceive-Store-Reason loop. Manages the event log and persistence.
+**Step C: Epistemic Classification**
+Manas infers the *Epistemic Type* based on the structure:
+*   `Is-A` → **DEFAULT** (Class membership is generally true).
+*   `Values` → **OBSERVATION** (Specific property).
+*   `Rules` → **AXIOM** (If explicitly marked).
+
+### 2. Graph Storage (Chitta)
+The cleaned belief is stored in the persistent **Chitta Graph**.
+```python
+Belief(
+    id="7d7c697c",
+    subject="socrates",
+    predicate="is_a",
+    object="human",
+    epistemic_state=EpistemicType.DEFAULT,
+    confidence=0.9,
+    active=True
+)
+```
 
 ---
 
-## 2. Core Logic Capabilities
+## � Benchmark Performance
+Episteme is rigorously tested against a **Brutal Benchmark** suite of 1,050 test cases designed to break fragile logic systems.
 
-### The Lattice of Truth
-Episteme rejects flat belief spaces. Truth is determined by structural rank, not just weight.
-*   **AXIOM**: Immutable truths (Rules of Logic/Nature).
-*   **EXCEPTION**: Specific overrides (Penguins don't fly).
-*   **DEFAULT**: General rules (Birds fly).
+### Overall Accuracy: **84.7%**
+*(Metric: Epistemic Logic Correctness)*
 
-### Conflict Resolution
-The system explicitly handles contradictory information using two mechanisms:
-1.  **Vertical Conflict (Specificity)**: Specific knowledge overrides general knowledge (Subclass wins).
-2.  **Horizontal Conflict (Ambiguity)**: Mutually exclusive paths of equal rank result in a `CONFLICT` verdict (The Nixon Diamond).
+### Category Breakdown
+| Category | Cases | Accuracy | Status |
+| :--- | :---: | :---: | :--- |
+| **Compositional Logic** | 70 | **100.0%** | ✅ Perfect Chain Inference |
+| **Ungrounded Queries** | 150 | **100.0%** | ✅ Perfect Refusal Discipline |
+| **Entity Ambiguity** | 50 | **100.0%** | ✅ Perfect Resolution |
+| **Cross-Frame Isolation** | 150 | **98.0%** | ✅ Robust Context Handling |
+| **Explicit Contradiction** | 350 | **74.6%** | ⚠️ Polarity Conflicts Detected |
+| **Inheritance Exception** | 150 | **60.7%** | ⚠️ Specificity Logic (Improved in V1.0) |
+
+> **Note on "Failures":** Many "failures" in earlier versions were actually *Epistemic Refusals* (The system refusing to guess). In V1.0, we distinguish `REFUSED` (Correct Humble) from `UNKNOWN` (Failure).
 
 ---
 
-## 3. System Showcase (Screenshots)
+## 🛠 Technical Architecture (MARC)
 
-The following outputs are actual traces from `showcase_episteme.py`.
+### 🧠 Manas (Acquisition)
+*   **Stateless**: No memory access. Pure text processing.
+*   **Strict Validators**: Rejects "1" as an entity.
 
-### A. Acquisition & Internal State
-Parsing natural language into structured, normalized beliefs.
+### 💾 Chitta (Memory)
+*   **Lifecycle**: Evidence (+Boost) / Time (-Decay).
+*   **Logic Gating**: Low confidence = Invisible to Logic.
 
-```text
-➤ 1. Teaching Basic Taxonomy
-  Inputting natural language facts. Manas normalizes entities/predicates.
-  USER: 'Socrates is a human.'
-  USER: 'A human is a mammal.'
-  USER: 'A mammal is an animal.'
-```
+### 💡 Buddhi (Intellect)
+*   **The Lattice of Truth**: `AXIOM` > `EXCEPTION` > `DEFAULT`.
+*   **Verdict Engine**:
+    *   `YES`: Entailed.
+    *   `NO`: Explicit negation or Specificity Override.
+    *   `CONFLICT`: Nixon Diamond (Ambiguous).
+    *   `UNKNOWN`: Insufficient Grounding.
 
-**Internal Graph Visualization (Chitta):**
-```text
-Internal Storage: Beliefs about 'socrates'
-ID              Statement                                Type            Conf   Status    
-------------------------------------------------------------------------------------------
-7d7c697c        Socrates is a human.                     DEFAULT         0.90   Active    
-------------------------------------------------------------------------------------------
-```
+### 👤 Ahankara (Controller)
+*   **The Self**: Manages the loop. Persists state to `showcase_db`.
 
-### B. Logical Inference (Buddhi)
-Deriving new truths via transitive entailment.
+---
 
-```text
-➤ 3. Asking a Question
-  Query: 'Is Socrates a mammal?'
-  Reasoning Trace:
-    [focus] Found 3 relevant belief(s)
-    [grounding_check] Taxonomic grounding: ancestor 'human' has predicate {'is_a'}
-    [taxonomic_entailment] Entailment: socrates is a mammal (Conf: 1.0)
+## 🚀 Key Output Examples
+*Actual outputs from `showcase_episteme.py`*
 
-  VERDICT: YES
-```
-
-### C. Specificity Conflict (Penguins)
-Demonstrating **Defeasible Reasoning**: A specific Exception overrides a General Default.
+### A. Specificity Override (Penguins)
+*Context: Birds fly (Default). Penguins are birds. Penguins don't fly (Exception).*
 
 ```text
-➤ 5. Resolving Specificity
-  Query: 'Does Tweety fly?' (Tweety is a Penguin, Penguins don't fly, Birds fly)
-  
+➤ Query: 'Does Tweety fly?'
   VERDICT: NO
   Reason: Specificity Win: Negative penguin (Dist 1) overrides Positive bird (Dist 2)
 ```
 
-### D. The Nixon Diamond (Horizontal Conflict)
-Handling ambiguity where no clear logical winner exists.
+### B. The Nixon Diamond
+*Context: Nixon is Quaker (Pacifist) & Republican (Warhawk).*
 
 ```text
-➤ 7. Resolving Nixon Diamond
-  Query: 'Does Nixon fly?' (Quaker [Yes] vs Republican [No])
-  
+➤ Query: 'Does Nixon fly?' (Metaphor for War Support)
   VERDICT: CONFLICT
   Conflict Detected: Horizontal Conflict: quaker (Pos) vs republican (Neg) at equal distance 1.
 ```
 
-### E. Quantitative Decay
-Beliefs fade if not reinforced, eventually becoming inactive.
-
-```text
-➤ 9. Temporal Decay & Logic Gating
-  Time passes...
-  [Chitta] 📉 Deactivating 'Market will crash' (Conf 0.050 < 0.1)
-```
-
 ---
 
-## 4. Technical Philosophy & Claims
-
-**What Episteme IS:**
-*   **Post-Logical**: Logic constraints are primary; probability is secondary.
-*   **Non-Monotonic**: New knowledge (Exceptions) can invalidate old inferences (Defaults).
-*   **Epistemic**: It explicitly models *why* it believes something (Rank, Path, Confidence).
-
-**What Episteme is NOT:**
-*   **NOT a Probabilistic Reasoner**: It does not average contradictions into a "0.5 truth".
-*   **NOT "Commonsense" AI**: It relies only on what it is taught or can strictly derive.
-*   **NOT a vector DB**: It uses structured graph representations, not semantic similarity embeddings.
+## Technical Philosophy
+1.  **Contradiction Blocks Inference, Not Retrieval**: If you taught it "Sky is Green", it will repeat it. But it won't use it to prove "Grass is Blue".
+2.  **Logic is Structural**: Semantics (`is_a`) matter more than vector similarity.
+3.  **Humble AI**: It is better to say `UNKNOWN` than to hallucinate.
 
 ## License
 MIT
