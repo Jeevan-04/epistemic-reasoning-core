@@ -79,18 +79,30 @@ Every belief in the db has these core parameters:
 *   **`active`**: Boolean flag. If $False$, the belief is "forgotten" and invisible to logic.
 
 ### B. Quantitative Formulas
+
 **1. Reinforcement (Evidence Boosting)**
-When a belief is re-stated, its confidence increases asymptotically towards 1.0.
-$$ C_{new} = C_{old} + (1 - C_{old}) \times \alpha $$
-*(Where $\alpha$ is a learning rate, typically 0.05)*
+When a belief is re-stated, its confidence boosts asymptotically towards 1.0.
+
+```math
+New_Conf = Old_Conf + (1 - Old_Conf) * Alpha
+```
+*(Where Alpha is logical learning rate, e.g., 0.05)*
 
 **2. Temporal Decay**
 Over time, unsupported beliefs fade.
-$$ C_{t} = C_{0} \times (D)^t $$
-*(Where $D$ is decay rate, e.g., 0.995)*
+
+```math
+Conf_t = Conf_0 * (Decay_Rate ^ Time_Steps)
+```
+*(Typical Decay_Rate = 0.995)*
 
 **3. Logic Gating**
-$$ \text{Status} = \begin{cases} \text{ACTIVE} & \text{if } C > \text{Threshold} \\ \text{INACTIVE} & \text{if } C \leq \text{Threshold} \end{cases} $$
+Beliefs must cross a semantic threshold to be "visible" to the Logic Engine.
+
+```text
+IF Conf > Threshold:  Status = ACTIVE   (Visible to Buddhi)
+IF Conf <= Threshold: Status = INACTIVE (Invisible to Buddhi)
+```
 
 ---
 
@@ -119,7 +131,33 @@ How Episteme decides when beliefs contradict:
 
 ---
 
-## 5. Benchmarks & Validation
+## 5. Advanced Epistemic Nuances
+
+Episteme handles subtle logical distinctions that break standard RAG or Graph-RAG systems.
+
+### A. Taxonomy & Transitivity
+The system automatically constructs a **Taxonomic Backbone**.
+*   **Input**: `Socrates is Human` + `Human is Mammal` + `Mammal is Animal`.
+*   **Inference**: `Socrates is Animal` (Distance 3).
+*   **Nuance**: This is **Directional**. It will *not* infer `Animal is Socrates`.
+
+### B. Defeasible Inheritance (The "But" Clause)
+The system understands that specific rules override general ones.
+*   **General**: "Mammals have hair" (DEFAULT).
+*   **Specific**: "Whales are mammals" + "Whales do NOT have hair" (EXCEPTION).
+*   **Result**: 
+    *   Query `Do mammals have hair?` -> **YES** (General case).
+    *   Query `Do whales have hair?` -> **NO** (Specific override).
+
+### C. The Open World Assumption
+Episteme distinguishes between **FALSE** and **UNKNOWN**.
+*   **FALSE**: Explicit negation found ("Socrates is NOT a god").
+*   **UNKNOWN**: No path found ("Socrates is a plumber?"). 
+*   **Benefit**: This prevents the "Hallucination of Negation" where models say "No" just because they explicitly don't know "Yes".
+
+---
+
+## 6. Benchmarks & Validation
 Episteme is validated against a **Brutal Benchmark** suite of 1,050 test cases.
 
 ### Category Breakdown
