@@ -1,126 +1,154 @@
-# Episteme: Layered Epistemic Reasoning Core
+# Episteme: A Persistent Epistemic Reasoning Core
 
-> **"Logic First, Numbers Second."**
+> **"Logic determines Validity. Numbers determine Availability."**
 
-Episteme is a persistent **epistemic reasoning system** that layers quantitative belief lifecycle management (confidence, decay) on top of a rigorous non-monotonic logic engine. Unlike neuro-symbolic hybrids that blend logic and probability into a "soup", Episteme maintains a strict separation: **Logic determines validity; Numbers determine availability.**
+Episteme is a research-grade **epistemic reasoning system** designed to solve the "Hallucination Problem" in symbolic AI. It layers a quantitative belief lifecycle (confidence, decay) on top of a rigorous non-monotonic logic engine.
 
----
-
-## 🔬 Deep Dive: How Episteme Understands
-Episteme treats understanding ("Manas") and reasoning ("Buddhi") as distinct processes. Here is the exact lifecycle of a belief from raw text to logical node.
-
-### 1. The Manas Pipeline (Acquisition)
-Input: *"Socrates is a human."*
-
-**Step A: Stateless Parsing (`BeliefProposal`)**
-Manas first converts the text into a raw, untrusted proposal. It detects the *intent* (Assertion) and the *template* (Is-A Relation).
-```json
-{
-  "template": "is_a",
-  "raw_text": "Socrates is a human.",
-  "entities": ["Socrates", "human"],
-  "confidence": 0.9,
-  "polarity": 1
-}
-```
-
-**Step B: Entity Normalization & Sanitation**
-Before entering the graph, entities are rigorously scrubbed:
-*   **Normalization**: "Humans" → "human", " The Socrates " → "socrates".
-*   **Sanitation**: Strict rejection of numeric entities ("1") or leaked verbs ("is").
-
-**Step C: Epistemic Classification**
-Manas infers the *Epistemic Type* based on the structure:
-*   `Is-A` → **DEFAULT** (Class membership is generally true).
-*   `Values` → **OBSERVATION** (Specific property).
-*   `Rules` → **AXIOM** (If explicitly marked).
-
-### 2. Graph Storage (Chitta)
-The cleaned belief is stored in the persistent **Chitta Graph**.
-```python
-Belief(
-    id="7d7c697c",
-    subject="socrates",
-    predicate="is_a",
-    object="human",
-    epistemic_state=EpistemicType.DEFAULT,
-    confidence=0.9,
-    active=True
-)
-```
+Unlike neuro-symbolic hybrids that blend logic and probability into a single vector space, Episteme maintains a strict **Architectural Separation of Concerns**:
+1.  **Symbolic Core (Buddhi)**: Determines what is *true* based on structural entailment.
+2.  **Quantitative Shell (Chitta)**: Determines what is *accessible* based on evidence and time.
 
 ---
 
-## � Benchmark Performance
-Episteme is rigorously tested against a **Brutal Benchmark** suite of 1,050 test cases designed to break fragile logic systems.
+## 1. Architectural Overview (MARC)
 
-### Overall Accuracy: **84.7%**
-*(Metric: Epistemic Logic Correctness)*
+Episteme follows the **MARC** (Modular Architecture for Reasoning and Cognition) paradigm, inspired by Sanskrit epistemology.
 
-### Category Breakdown
-| Category | Cases | Accuracy | Status |
+```mermaid
+graph TD
+    User[User / World] -->|Natural Language| Manas[Manas: Acquisition]
+    Manas -->|Belief Proposal| Ahankara[Ahankara: Controller]
+    Ahankara -->|Store| Chitta[Chitta: Persistent Graph]
+    Ahankara -->|Query| Buddhi[Buddhi: Logic Engine]
+    Chitta -->|Graph State| Buddhi
+    Buddhi -->|Verdict| Ahankara
+    Ahankara -->|Response| User
+```
+
+### Component Deep Dive
+
+#### 🧠 Manas (The Mind / Sensorium)
+*   **Role**: Stateless Perception & Normalization.
+*   **Input**: Raw Natural Language ("Socrates is a human").
+*   **Process**:
+    1.  **Intent Detection**: Asserts (Teach) vs Interrogates (Query).
+    2.  **Entity Normalization**: Maps "Humans", "human", "The human" -> `human`.
+    3.  **Sanitation**: **CRITICAL**. Rejects numeric tokens (`1`, `100`) and leaked verbs (`is`) to prevent graph pollution.
+    4.  **Epistemic Classification**: Infers logical type (`DEFAULT`, `AXIOM`, `OBSERVATION`).
+*   **Output**: Untrusted `BeliefProposal`.
+
+#### 💾 Chitta (The Memory)
+*   **Role**: Persistent Graph Storage & Quantitative Management.
+*   **Structure**: Directed Semantic Graph where Edge = Predicate.
+*   **Quantitative Logic**:
+    *   **Reinforcement**: $C_{new} = C_{old} + (1 - C_{old}) \times \alpha$ (Asymptotic approach to 1.0).
+    *   **Temporal Decay**: $C_{t} = C_{0} \times (D)^t$ where $D$ is decay rate.
+    *   **Logic Gating**: If $C < Threshold$, belief is **INACTIVE** (Invisible to Logic).
+
+#### 💡 Buddhi (The Intellect)
+*   **Role**: Pure Logic & Inference.
+*   **Mechanism**: **The Lattice of Truth**.
+*   **Hierarchy**:
+    1.  **AXIOM**: Immutable truths of the system.
+    2.  **OBSERVATION**: Direct empirical facts.
+    3.  **EXCEPTION**: Specific overrides (e.g., Penguins).
+    4.  **DEFAULT**: General rules (e.g., Birds fly).
+    5.  **HYPOTHESIS**: Unverified structures.
+
+#### 👤 Ahankara (The Self)
+*   **Role**: System Controller.
+*   **Function**: Orchestrates the loop, manages persistence (`showcase_db`), and maintains the "I" state (Session context).
+
+---
+
+## 2. Algorithms & Logic
+
+### A. The Conflict Resolution Matrix
+How does Episteme handle contradictory information? It uses a **Structural Conflict Matrix** based on Rank and Graph Distance.
+
+| Scenario | Condition | Verdict | Reason |
+| :--- | :--- | :--- | :--- |
+| **No Conflict** | Only one valid path exists | `YES` / `NO` | Entailment |
+| **Vertical Conflict** | Path A (Neg) is shorter than Path B (Pos) | **Specific Wins** | Specificity Override (Penguin > Bird) |
+| **Rank Conflict** | Path A (Axiom) vs Path B (Default) | **Rank Wins** | Epistemic Superiority |
+| **Horizontal Conflict** | Rank Equal, Distance Equal, Signs Opposed | **CONFLICT** | The Nixon Diamond (Quaker vs Republican) |
+
+### B. Pathfinding (Transitive Inference)
+To answer "Is Socrates a mammal?":
+1.  **Focus**: Retrieve belief `socrates`.
+2.  **Expand**: Traverse `is_a` edges -> `human` -> `mammal`.
+3.  **Check**: Does `mammal` match Target?
+4.  **Verdict**: `YES` (Distance 2).
+
+---
+
+## 3. Benchmark Verification
+
+Episteme is validated against a **Brutal Benchmark** of 1,050 complex test cases.
+
+### Performance Summary
+| Category | Cases | Accuracy | Insight |
 | :--- | :---: | :---: | :--- |
-| **Compositional Logic** | 70 | **100.0%** | ✅ Perfect Chain Inference |
-| **Ungrounded Queries** | 150 | **100.0%** | ✅ Perfect Refusal Discipline |
-| **Entity Ambiguity** | 50 | **100.0%** | ✅ Perfect Resolution |
-| **Cross-Frame Isolation** | 150 | **98.0%** | ✅ Robust Context Handling |
-| **Explicit Contradiction** | 350 | **74.6%** | ⚠️ Polarity Conflicts Detected |
-| **Inheritance Exception** | 150 | **60.7%** | ⚠️ Specificity Logic (Improved in V1.0) |
-
-> **Note on "Failures":** Many "failures" in earlier versions were actually *Epistemic Refusals* (The system refusing to guess). In V1.0, we distinguish `REFUSED` (Correct Humble) from `UNKNOWN` (Failure).
+| **Compositional Logic** | 70 | **100%** | Handles multi-step chains ($A \to B \to C$) perfectly. |
+| **Ungrounded Refusal** | 150 | **100%** | Correctly answers `REFUSED` for unknown facts instead of hallucinating `NO`. |
+| **Entity Ambiguity** | 50 | **100%** | Distinguishes distinct entities with same names (if context differs). |
+| **Cross-Frame** | 150 | **98%** | Prevents context leakage between independent scenarios. |
+| **Explicit Contradiction** | 350 | **74.6%** | Identifying *why* something is a contradiction is harder than just spotting it. |
+| **Inheritance Exception** | 150 | **60.7%** | Specificity logic is complex; V1.0 greatly improved this over V0 (18%). |
 
 ---
 
-## 🛠 Technical Architecture (MARC)
+## 4. System Output Examples
 
-### 🧠 Manas (Acquisition)
-*   **Stateless**: No memory access. Pure text processing.
-*   **Strict Validators**: Rejects "1" as an entity.
-
-### 💾 Chitta (Memory)
-*   **Lifecycle**: Evidence (+Boost) / Time (-Decay).
-*   **Logic Gating**: Low confidence = Invisible to Logic.
-
-### 💡 Buddhi (Intellect)
-*   **The Lattice of Truth**: `AXIOM` > `EXCEPTION` > `DEFAULT`.
-*   **Verdict Engine**:
-    *   `YES`: Entailed.
-    *   `NO`: Explicit negation or Specificity Override.
-    *   `CONFLICT`: Nixon Diamond (Ambiguous).
-    *   `UNKNOWN`: Insufficient Grounding.
-
-### 👤 Ahankara (Controller)
-*   **The Self**: Manages the loop. Persists state to `showcase_db`.
-
----
-
-## 🚀 Key Output Examples
-*Actual outputs from `showcase_episteme.py`*
-
-### A. Specificity Override (Penguins)
-*Context: Birds fly (Default). Penguins are birds. Penguins don't fly (Exception).*
-
+### Case Study 1: The Penguin Problem (Specificity)
+*Demonstrates: Defeasible Reasoning (Exceptions override Defaults).*
 ```text
 ➤ Query: 'Does Tweety fly?'
+  Context: 
+    1. Birds fly (Default)
+    2. Tweety is a Penguin
+    3. Penguins do NOT fly (Exception)
+
   VERDICT: NO
   Reason: Specificity Win: Negative penguin (Dist 1) overrides Positive bird (Dist 2)
 ```
 
-### B. The Nixon Diamond
-*Context: Nixon is Quaker (Pacifist) & Republican (Warhawk).*
-
+### Case Study 2: The Nixon Diamond (Ambiguity)
+*Demonstrates: Valid Horizontal Conflict.*
 ```text
 ➤ Query: 'Does Nixon fly?' (Metaphor for War Support)
+  Context:
+    1. Nixon is a Quaker (Pacifist)
+    2. Nixon is a Republican (Warhawk)
+    3. Rank(Quaker) == Rank(Republican)
+
   VERDICT: CONFLICT
   Conflict Detected: Horizontal Conflict: quaker (Pos) vs republican (Neg) at equal distance 1.
 ```
 
+### Case Study 3: Quantitative Decay
+*Demonstrates: Logic Gating.*
+```text
+➤ Event: 'Market will crash' (Rumor)
+➤ Time passes... (No reinforcement)
+[Chitta] 📉 Deactivating 'Market will crash' (Conf 0.05 < 0.1)
+Result: Logic Engine treats the belief as non-existent.
+```
+
 ---
 
-## Technical Philosophy
-1.  **Contradiction Blocks Inference, Not Retrieval**: If you taught it "Sky is Green", it will repeat it. But it won't use it to prove "Grass is Blue".
-2.  **Logic is Structural**: Semantics (`is_a`) matter more than vector similarity.
-3.  **Humble AI**: It is better to say `UNKNOWN` than to hallucinate.
+## 5. Technical Philosophy
+
+**1. Contradiction blocks Inference, NOT Retrieval.**
+If you explicitly teach the system "The sky is green", it will remember that you said it. But it will REFUSE to use that fact to prove "Grass is Blue" if it conflicts with an Axiom.
+
+**2. Distinction between UNKNOWN and FALSE.**
+*   **FALSE**: I have a valid logical path to a Negation.
+*   **UNKNOWN**: I have no valid path to Target.
+*   **REFUSED**: I have a path but it violates Epistemic Grounding (e.g. Terms used but not defined).
+
+**3. Hygiene.**
+A Logic system is only as good as its inputs. Manas acts as the immune system, rejecting non-semantic input ("1", "is", "the") before it can become a viral belief.
 
 ## License
 MIT
