@@ -149,6 +149,3 @@ If you explicitly teach the system "The sky is green", it will remember that you
 
 **3. Hygiene.**
 A Logic system is only as good as its inputs. Manas acts as the immune system, rejecting non-semantic input ("1", "is", "the") before it can become a viral belief.
-
-## License
-MIT
