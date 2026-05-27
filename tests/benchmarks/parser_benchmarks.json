@@ -1,0 +1,52 @@
+[
+  {
+    "id": "mi-001",
+    "category": "multi_inheritance",
+    "title": "Penguin inheritance basic",
+    "premises": [
+      "Birds fly.",
+      "Penguins are birds.",
+      "Penguins do not fly."
+    ],
+    "query": "Do penguins fly?",
+    "expected": "NO"
+  },
+  {
+    "id": "mi-002",
+    "category": "multi_inheritance",
+    "title": "Military penguins override",
+    "premises": [
+      "Birds fly.",
+      "Penguins are birds.",
+      "Military penguins are penguins.",
+      "Military penguins fly.",
+      "Penguins do not fly."
+    ],
+    "query": "Do military penguins fly?",
+    "expected": "YES"
+  },
+  {
+    "id": "mi-004",
+    "category": "multi_inheritance",
+    "title": "Contradiction from two parents",
+    "premises": [
+      "Typically, A entities P.",
+      "Typically, B entities do not P.",
+      "X is both an A and a B."
+    ],
+    "query": "Is X P?",
+    "expected": "CONFLICT"
+  },
+  {
+    "id": "mi-005",
+    "category": "multi_inheritance",
+    "title": "Priority by rank",
+    "premises": [
+      "Typically, A P (rank 1).",
+      "Typically, B do not P (rank 2).",
+      "Y is A and B."
+    ],
+    "query": "Is Y P?",
+    "expected": "NO"
+  }
+]

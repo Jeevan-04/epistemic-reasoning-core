@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 
 from chitta.graph import ChittaGraph
 from buddhi.belief import Belief, Polarity, EpistemicType
+from buddhi.argument import Argument
+import re
 from manas.schemas import SchemaExtractor, RelationSchema
 from common.types import RelationFrame, RelationKind
 
@@ -101,6 +103,7 @@ class AnswerProof:
     verdict: str                   # "yes" | "no" | "uncertain" | "unknown"
     steps: list[DerivationStep] = field(default_factory=list)
     conflicts: list[ConflictRecord] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     
     def add_step(self, rule: str, inputs: list[str], output: str, confidence: float | None = None):
         """Add a derivation step to the proof."""
@@ -123,6 +126,10 @@ class AnswerProof:
             resolution=resolution
         )
         self.conflicts.append(conflict)
+
+    def add_argument_summary(self, summary: dict[str, Any]):
+        """Record a compact argument summary for trace export."""
+        self.metadata.setdefault("arguments", []).append(summary)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -505,9 +512,25 @@ class Buddhi:
                     if not belief.active:
                         continue
                     
-                    if ancestor in belief.entities:
+                    # Compare normalized forms for ancestor membership to avoid
+                    # mismatches due to case/plurals (e.g., 'Birds' vs 'bird').
+                    def _norm_tok(x: str | None) -> str | None:
+                        if x is None:
+                            return None
+                        try:
+                            return x.lower().rstrip('s')
+                        except Exception:
+                            return x
+
+                    belief_entity_norms = {_norm_tok(be) for be in belief.entities}
+                    if _norm_tok(ancestor) in belief_entity_norms:
                         belief_preds = set(belief.predicates)
-                        matching_preds = inheritable_predicates & belief_preds
+                        # Allow fuzzy predicate matching (e.g., 'can_fly' vs 'fly')
+                        matching_preds = set()
+                        for bp in belief_preds:
+                            for ip in inheritable_predicates:
+                                if ip == bp or ip in bp or bp in ip:
+                                    matching_preds.add(bp)
                         
                         if matching_preds:
                             # Do not inherit from weak Hypotheses
@@ -522,29 +545,53 @@ class Buddhi:
                             # QUANTITATIVE LAYER: Calculate Weakest Link Confidence
                             chain_conf = self._calculate_chain_confidence(path, belief.id)
                             
-                            # Create path record
-                            path_record = {
-                                "distance": distance,
-                                "ancestor": ancestor,
-                                "path_ids": path,
-                                "belief": belief,
-                                "predicates": list(matching_preds),
-                                "chain_confidence": chain_conf
-                            }
-                            
+                            # Create explicit Argument object for this path
+                            arg = Argument(
+                                claim=','.join(list(matching_preds)),
+                                supports=[belief.id],
+                                path=list(path),
+                                rank=(belief.canonical.get('rank') if isinstance(getattr(belief, 'canonical', None), dict) and belief.canonical.get('rank') is not None else Argument.get_rank(belief.epistemic_state)),
+                                specificity=distance,
+                                activation=chain_conf,
+                                provenance=belief.provenance,
+                                source_reliability=belief.source_reliability,
+                                recency=belief.updated_at if hasattr(belief, 'updated_at') else None,
+                                is_negative=is_negative
+                            )
+
                             if is_negative:
-                                negative_paths.append(path_record)
+                                negative_paths.append(arg)
+                                proof.add_argument_summary({
+                                    "claim": arg.claim,
+                                    "supports": arg.supports,
+                                    "path": arg.path,
+                                    "rank": arg.rank,
+                                    "specificity": arg.specificity,
+                                    "activation": arg.activation,
+                                    "source_reliability": arg.source_reliability,
+                                    "is_negative": arg.is_negative,
+                                })
                                 proof.add_step(
                                     rule="path_collection",
-                                    inputs=[belief.id],
+                                    inputs=[belief.id] + list(path),
                                     output=f"Found NEGATIVE path on {ancestor} (Dist {distance})",
                                     confidence=chain_conf
                                 )
                             else:
-                                positive_paths.append(path_record)
+                                positive_paths.append(arg)
+                                proof.add_argument_summary({
+                                    "claim": arg.claim,
+                                    "supports": arg.supports,
+                                    "path": arg.path,
+                                    "rank": arg.rank,
+                                    "specificity": arg.specificity,
+                                    "activation": arg.activation,
+                                    "source_reliability": arg.source_reliability,
+                                    "is_negative": arg.is_negative,
+                                })
                                 proof.add_step(
                                     rule="path_collection",
-                                    inputs=[belief.id],
+                                    inputs=[belief.id] + list(path),
                                     output=f"Found POSITIVE path on {ancestor} (Dist {distance})",
                                     confidence=chain_conf
                                 )
@@ -557,29 +604,32 @@ class Buddhi:
                 return self._resolve_taxonomic_conflict(entity, positive_paths, negative_paths, proof)
             elif negative_paths:
                 # Only explicit negations found
-                best_neg = min(negative_paths, key=lambda x: x["distance"])
+                best_neg: Argument = min(negative_paths, key=lambda a: a.specificity)
                 proof.verdict = "no"
                 proof.add_step(
                     rule="taxonomic_inheritance",
-                    inputs=best_neg["path_ids"] + [best_neg["belief"].id],
-                    output=f"Inherited NEGATION from {best_neg['ancestor']} (Dist {best_neg['distance']})",
-                    confidence=best_neg.get("chain_confidence", best_neg["belief"].confidence)
+                    inputs=best_neg.path + best_neg.supports,
+                    output=f"Inherited NEGATION (spec={best_neg.specificity})",
+                    confidence=best_neg.activation
                 )
                 self.stats["taxonomic_inferences"] += 1
                 return True
             elif positive_paths:
                 # Only positive facts found
-                best_pos = min(positive_paths, key=lambda x: x["distance"])
+                best_pos: Argument = min(positive_paths, key=lambda a: a.specificity)
                 proof.verdict = "yes"
                 proof.add_step(
                     rule="taxonomic_inheritance",
-                    inputs=best_pos["path_ids"] + [best_pos["belief"].id],
-                    output=f"Inherited POSITIVE from {best_pos['ancestor']} (Dist {best_pos['distance']})",
-                    confidence=best_pos.get("chain_confidence", best_pos["belief"].confidence)
+                    inputs=best_pos.path + best_pos.supports,
+                    output=f"Inherited POSITIVE (spec={best_pos.specificity})",
+                    confidence=best_pos.activation
                 )
                 self.stats["taxonomic_inferences"] += 1
-                # Reinforce used beliefs
-                best_pos["belief"].reinforce(boost=0.03, success=True)
+                # Reinforce used beliefs (first support)
+                if best_pos.supports:
+                    b = self.chitta.get(best_pos.supports[0])
+                    if b:
+                        b.reinforce(boost=0.03, success=True)
                 return True
         
         return False
@@ -599,79 +649,120 @@ class Buddhi:
         2. Epistemic Rank: AXIOM > EXCEPTION/OBSERVATION > DEFAULT.
         3. Horizontal Conflict: If equal specificity and rank -> CONFLICT.
         """
-        # Get best candidates (shortest path)
-        best_pos = min(pos_paths, key=lambda x: x["distance"])
-        best_neg = min(neg_paths, key=lambda x: x["distance"])
-        
-        # 1. SPECIFICITY CHECK
-        if best_pos["distance"] < best_neg["distance"]:
+        # Get best candidates (smallest specificity)
+        best_pos: Argument = min(pos_paths, key=lambda a: a.specificity)
+        best_neg: Argument = min(neg_paths, key=lambda a: a.specificity)
+
+        # 1 & 2: Use Argument.defeats (lexicographic comparison covers specificity and rank)
+        # Candidate attributes available for debugging if needed
+
+        # If both candidates are effectively tied on primary metrics, declare CONFLICT
+        try:
+            eps = 1e-6
+            if (best_pos.specificity == best_neg.specificity and
+                best_pos.rank == best_neg.rank and
+                abs(best_pos.activation - best_neg.activation) < eps and
+                abs(best_pos.source_reliability - best_neg.source_reliability) < eps):
+                proof.verdict = "conflict"
+                proof.add_argument_summary({
+                    "winner": "conflict",
+                    "positive_specificity": best_pos.specificity,
+                    "negative_specificity": best_neg.specificity,
+                    "positive_rank": best_pos.rank,
+                    "negative_rank": best_neg.rank,
+                })
+                proof.add_conflict(
+                    predicate="inheritance_conflict",
+                    positive=best_pos.supports[0] if best_pos.supports else "unknown",
+                    negative=best_neg.supports[0] if best_neg.supports else "unknown",
+                    delta=abs(best_pos.activation - best_neg.activation),
+                    resolution="tie_conflict"
+                )
+                proof.add_step(
+                    rule="conflict_tiebreak",
+                    inputs=best_pos.path + best_pos.supports + best_neg.path + best_neg.supports,
+                    output="Tie on specificity/rank/activation -> CONFLICT",
+                    confidence=0.0
+                )
+                return True
+        except Exception:
+            pass
+
+        if best_pos.defeats(best_neg):
             proof.verdict = "yes"
+            proof.add_argument_summary({
+                "winner": "positive",
+                "claim": best_pos.claim,
+                "supports": best_pos.supports,
+                "path": best_pos.path,
+                "rank": best_pos.rank,
+                "specificity": best_pos.specificity,
+                "activation": best_pos.activation,
+                "source_reliability": best_pos.source_reliability,
+                "is_negative": best_pos.is_negative,
+                "loser_claim": best_neg.claim,
+            })
             proof.add_step(
-                rule="specificity_resolution",
-                inputs=[best_pos["belief"].id, best_neg["belief"].id],
-                output=f"Specificity Win: Positive {best_pos['ancestor']} (Dist {best_pos['distance']}) overrides Negative {best_neg['ancestor']} (Dist {best_neg['distance']})",
-                confidence=best_pos.get("chain_confidence", best_pos["belief"].confidence)
+                rule="defeat_resolution",
+                inputs=best_pos.path + best_pos.supports,
+                output=f"Argument Win: Positive argument defeats negative (spec={best_pos.specificity}, rank={best_pos.rank})",
+                confidence=best_pos.activation
             )
             return True
-        elif best_neg["distance"] < best_pos["distance"]:
+        elif best_neg.defeats(best_pos):
             proof.verdict = "no"
+            proof.add_argument_summary({
+                "winner": "negative",
+                "claim": best_neg.claim,
+                "supports": best_neg.supports,
+                "path": best_neg.path,
+                "rank": best_neg.rank,
+                "specificity": best_neg.specificity,
+                "activation": best_neg.activation,
+                "source_reliability": best_neg.source_reliability,
+                "is_negative": best_neg.is_negative,
+                "loser_claim": best_pos.claim,
+            })
             proof.add_step(
-                rule="specificity_resolution",
-                inputs=[best_neg["belief"].id, best_pos["belief"].id],
-                output=f"Specificity Win: Negative {best_neg['ancestor']} (Dist {best_neg['distance']}) overrides Positive {best_pos['ancestor']} (Dist {best_pos['distance']})",
-                confidence=best_neg.get("chain_confidence", best_neg["belief"].confidence)
+                rule="defeat_resolution",
+                inputs=best_neg.path + best_neg.supports,
+                output=f"Argument Win: Negative argument defeats positive (spec={best_neg.specificity}, rank={best_neg.rank})",
+                confidence=best_neg.activation
             )
             return True
-            
-        # 2. RANK CHECK (if distances equal)
-        # For now, treat EXCEPTION > DEFAULT.
-        pos_type = best_pos["belief"].epistemic_state
-        neg_type = best_neg["belief"].epistemic_state
-        
-        # Determine strict ranks
-        def get_rank(etype):
-            if etype == EpistemicType.AXIOM: return 3
-            if etype == EpistemicType.EXCEPTION: return 2
-            if etype == EpistemicType.OBSERVATION: return 2
-            if etype == EpistemicType.DEFAULT: return 1
-            return 0
-            
-        rank_pos = get_rank(pos_type)
-        rank_neg = get_rank(neg_type)
-        
-        if rank_pos > rank_neg:
-            proof.verdict = "yes"
-            proof.add_step(
-                rule="rank_resolution",
-                inputs=[best_pos["belief"].id],
-                output=f"Rank Win: {pos_type.name} > {neg_type.name}",
-                confidence=best_pos.get("chain_confidence", best_pos["belief"].confidence)
-            )
-            return True
-        elif rank_neg > rank_pos:
-            proof.verdict = "no"
-            proof.add_step(
-                rule="rank_resolution",
-                inputs=[best_neg["belief"].id],
-                output=f"Rank Win: {neg_type.name} > {pos_type.name}",
-                confidence=best_neg.get("chain_confidence", best_neg["belief"].confidence)
-            )
-            return True
-            
-        # 3. HORIZONTAL CONFLICT (Nixon Diamond)
-        # Equal distance, equal rank.
+
+        # 3. HORIZONTAL CONFLICT (Neither strictly defeats the other)
         proof.verdict = "conflict"
+        proof.add_argument_summary({
+            "winner": "conflict",
+            "positive_claim": best_pos.claim,
+            "positive_supports": best_pos.supports,
+            "positive_path": best_pos.path,
+            "positive_rank": best_pos.rank,
+            "positive_specificity": best_pos.specificity,
+            "positive_activation": best_pos.activation,
+            "positive_source_reliability": best_pos.source_reliability,
+            "negative_claim": best_neg.claim,
+            "negative_supports": best_neg.supports,
+            "negative_path": best_neg.path,
+            "negative_rank": best_neg.rank,
+            "negative_specificity": best_neg.specificity,
+            "negative_activation": best_neg.activation,
+            "negative_source_reliability": best_neg.source_reliability,
+        })
+        pos_id = best_pos.supports[0] if best_pos.supports else "unknown"
+        neg_id = best_neg.supports[0] if best_neg.supports else "unknown"
         proof.add_conflict(
             predicate="inheritance_conflict",
-            positive=best_pos["belief"].id,
-            negative=best_neg["belief"].id,
-            delta=0.0,
+            positive=pos_id,
+            negative=neg_id,
+            delta=abs(best_pos.activation - best_neg.activation),
             resolution="unresolved"
         )
         proof.add_step(
             rule="conflict_detected",
-            inputs=[best_pos["belief"].id, best_neg["belief"].id],
-            output=f"Horizontal Conflict: {best_pos['ancestor']} (Pos) vs {best_neg['ancestor']} (Neg) at equal distance {best_pos['distance']}.",
+            inputs=best_pos.path + best_pos.supports + best_neg.path + best_neg.supports,
+            output=f"Horizontal Conflict: positive(spec={best_pos.specificity},rank={best_pos.rank}) vs negative(spec={best_neg.specificity},rank={best_neg.rank}).",
             confidence=0.0
         )
         return True
@@ -716,20 +807,45 @@ class Buddhi:
         visited.add(entity)
         ancestors = []
         
-        # Find direct parents via is_a
+        # Normalization helper for simple singular/lowercase matching
+        def _norm(x: str | None) -> str | None:
+            if x is None:
+                return None
+            try:
+                return x.lower().rstrip('s')
+            except Exception:
+                return x
+
+        # Find direct parents via is_a (use normalized matching)
         for belief in self.chitta.beliefs.values():
             if not belief.active or belief.template != "is_a":
                 continue
-            
-            if belief.subject == entity and belief.object:
-                parent = belief.object
-                # Add direct parent
-                ancestors.append((parent, [belief.id]))
-                
-                # Recursively get grandparents
-                grandparents = self._get_taxonomic_ancestors(parent, visited.copy())
-                for grandparent, path in grandparents:
-                    ancestors.append((grandparent, [belief.id] + path))
+
+            subj_norm = _norm(belief.subject)
+            ent_norm = _norm(entity)
+            if subj_norm and ent_norm and subj_norm == ent_norm:
+                # Collect parent candidates: explicit object plus any other entities
+                parents = set()
+                if belief.object:
+                    parents.add(belief.object)
+                # Also consider other canonical entities as possible parents
+                for extra in belief.entities:
+                    try:
+                        extra_norm = extra.lower().strip()
+                    except Exception:
+                        extra_norm = extra
+                    # Strip common articles
+                    if extra_norm.startswith(('a ', 'an ', 'the ')):
+                        extra_norm = re.sub(r'^(a |an |the )', '', extra_norm)
+                    if extra_norm and extra_norm != belief.subject:
+                        parents.add(extra_norm)
+
+                for parent in parents:
+                    ancestors.append((parent, [belief.id]))
+                    # Recursively get grandparents
+                    grandparents = self._get_taxonomic_ancestors(parent, visited.copy())
+                    for grandparent, path in grandparents:
+                        ancestors.append((grandparent, [belief.id] + path))
         
         return ancestors
     
@@ -774,8 +890,9 @@ class Buddhi:
         # CASE B: Taxonomic grounding
         # Check if any ancestor has this predicate defined
         for entity in query_entities:
-            # Skip trivial words
-            if entity in {'in', 'on', 'at', 'of', 'to', 'from', 'by', 'with', 'the', 'a', 'an'}:
+            # Skip trivial words UNLESS they actually appear in the memory index
+            trivial_tokens = {'in', 'on', 'at', 'of', 'to', 'from', 'by', 'with', 'the', 'a', 'an'}
+            if entity in trivial_tokens and entity not in self.chitta.entity_index:
                 continue
             
             # Get ancestors
@@ -1072,13 +1189,28 @@ class Buddhi:
                     primary_entity = entity
                     break
             
+            # Prefer an entity that actually exists in Chitta (normalize lookup)
+            selected = None
+            def _norm_e(x: str) -> str:
+                return x.lower().rstrip('s') if x else x
+            for e in query_entities:
+                if e in trivial_words:
+                    continue
+                if any(_norm_e(e) == _norm_e(idx) for idx in self.chitta.entity_index):
+                    selected = e
+                    break
+            if selected:
+                primary_entity = selected
+
             # If we have a primary entity, check if it's known
             if primary_entity:
                 # Primary entity is known if:
                 # 1. It appears in entity_index, OR
                 # 2. It's embedded in the predicate (e.g., "liquid" in "is_liquid")
-                in_entity_index = primary_entity in self.chitta.entity_index
-                in_predicate = any(primary_entity in pred for pred in query_predicates)
+                # Normalize for lookup: be case-insensitive and allow simple plural/singular variants
+                normalized_primary = primary_entity.lower().rstrip('s')
+                in_entity_index = any(normalized_primary == e.lower().rstrip('s') for e in self.chitta.entity_index)
+                in_predicate = any(normalized_primary in pred.lower() or primary_entity.lower() in pred.lower() for pred in query_predicates)
                 
                 if not in_entity_index and not in_predicate:
                     proof.verdict = "unknown"
@@ -1132,14 +1264,18 @@ class Buddhi:
         # Only beliefs that DIRECTLY answer the question are applicable.
         # This prevents false positives from loose semantic overlap.
         # ───────────────────────────────────────────────────────────────
+        # Normalize entities for robust matching (case-insensitive, simple singularization)
+        norm_query_entities = set(e.lower().rstrip('s') for e in query_entities_set)
+
         applicable_beliefs = []
         for belief in focus_set:
             belief_entities = set(belief.entities)
+            norm_belief_entities = set(e.lower().rstrip('s') for e in belief_entities)
             belief_predicates = set(belief.predicates)
             
             # Entity overlap (Standard Jaccard-ish)
-            entity_sect = query_entities_set & belief_entities
-            entity_overlap = len(entity_sect) / max(len(query_entities_set), 1) if len(query_entities_set) > 0 else 0
+            entity_sect = norm_query_entities & norm_belief_entities
+            entity_overlap = len(entity_sect) / max(len(norm_query_entities), 1) if len(norm_query_entities) > 0 else 0
             
             # Predicate overlap (Fuzzy: substring match)
             # Check if any query predicate "covers" a belief predicate or vice-versa
@@ -1236,11 +1372,22 @@ class Buddhi:
             return proof
         
         # 3. Try Taxonomic Inheritance (Do Penguins have wings?)
+        # Do not use property inheritance to answer class-membership queries.
+        # Membership has already been handled above with an explicit subject/object
+        # check. Falling through here can turn "Is Socrates a plumber?" into YES
+        # merely because Socrates has some unrelated is_a ancestor.
+        is_taxonomic_query = "is_a" in query_predicates_set
+        if not is_taxonomic_query:
+            for pred in query_predicates_set:
+                if RelationFrame.for_predicate(pred).kind == RelationKind.TAXONOMIC:
+                    is_taxonomic_query = True
+                    break
+
         # CRITICAL FIX: Only checking inheritance for the SUBJECT.
         # Otherwise checking the object (e.g. "Is A a B?") might find that B inherits something and return YES.
         entities_to_check = {subject} if subject else query_entities_set
         
-        if self._apply_taxonomic_inference(entities_to_check, query_predicates_set, proof):
+        if not is_taxonomic_query and self._apply_taxonomic_inference(entities_to_check, query_predicates_set, proof):
             self.stats["taxonomic_inferences"] += 1
             for step in proof.steps:
                 for belief_id in step.inputs:
@@ -1305,9 +1452,34 @@ class Buddhi:
         
         positive_proofs = []
         negative_proofs = []
+
+        def summarize_path(path: list[str], is_negative: bool) -> dict[str, Any]:
+            beliefs = [self.chitta.get(bid) for bid in path if self.chitta.get(bid)]
+            reliabilities = [b.source_reliability for b in beliefs if hasattr(b, 'source_reliability')]
+            activations = [b.confidence for b in beliefs if hasattr(b, 'confidence')]
+            ranks = [Argument.get_rank(b.epistemic_state) for b in beliefs if hasattr(b, 'epistemic_state')]
+            return {
+                "claim": f"{subject} is {object_}",
+                "path": list(path),
+                "supports": list(path),
+                "specificity": len(path),
+                "rank": max(ranks) if ranks else 0,
+                "activation": min(activations) if activations else 0.0,
+                "source_reliability": (sum(reliabilities) / len(reliabilities)) if reliabilities else 1.0,
+                "is_negative": is_negative,
+            }
         
         for ancestor_id, path in ancestors:
-            if ancestor_id == object_:
+            # Normalize tokens to avoid plural/case mismatches
+            def _norm_token(x: str | None) -> str | None:
+                if x is None:
+                    return None
+                try:
+                    return x.lower().rstrip('s')
+                except Exception:
+                    return x
+
+            if _norm_token(ancestor_id) == _norm_token(object_):
                  # Check path polarity
                  is_negative_path = False
                  for bid in path:
@@ -1324,12 +1496,20 @@ class Buddhi:
                  
                  if is_negative_path:
                      negative_proofs.append(path)
+                     proof.add_argument_summary(summarize_path(path, True))
                  else:
                      positive_proofs.append(path)
+                     proof.add_argument_summary(summarize_path(path, False))
 
         # 3. Conflict Resolution
         if positive_proofs and negative_proofs:
              proof.verdict = "conflict"
+             proof.add_argument_summary({
+                 "winner": "conflict",
+                 "positive_path": positive_proofs[0],
+                 "negative_path": negative_proofs[0],
+                 "specificity": len(positive_proofs[0]),
+             })
              proof.add_step(
                  rule="conflict_resolution",
                  inputs=positive_proofs[0] + negative_proofs[0], # Show both
@@ -1340,6 +1520,11 @@ class Buddhi:
              
         elif negative_proofs:
              proof.verdict = "no"
+             proof.add_argument_summary({
+                 "winner": "negative",
+                 "path": negative_proofs[0],
+                 "specificity": len(negative_proofs[0]),
+             })
              proof.add_step(
                  rule="taxonomic_exclusion",
                  inputs=negative_proofs[0],
@@ -1350,6 +1535,11 @@ class Buddhi:
              
         elif positive_proofs:
              proof.verdict = "yes"
+             proof.add_argument_summary({
+                 "winner": "positive",
+                 "path": positive_proofs[0],
+                 "specificity": len(positive_proofs[0]),
+             })
              proof.add_step(
                  rule="taxonomic_entailment",
                  inputs=positive_proofs[0],

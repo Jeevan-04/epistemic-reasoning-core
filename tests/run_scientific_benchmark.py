@@ -12,6 +12,7 @@ import json
 import logging
 import sys
 import os
+import argparse
 from pathlib import Path
 from dataclasses import asdict
 
@@ -46,7 +47,7 @@ def log_section(title: str):
 def log_item(key: str, value: str):
     logger.info(f"{key:<20}: {value}")
 
-def run_scientific_benchmark():
+def run_scientific_benchmark(min_accuracy: float = 0.625):
     print(f"Running Scientific Benchmark... (Logs: {LOG_FILE})")
     
     # Load Data
@@ -130,9 +131,28 @@ def run_scientific_benchmark():
     # Final Summary
     log_section("BENCHMARK SUMMARY")
     logger.info(f"Passed: {passed}/{total}")
-    logger.info(f"Accuracy: {(passed/total)*100:.1f}%")
+    accuracy = (passed/total) if total else 0.0
+    logger.info(f"Accuracy: {accuracy*100:.1f}%")
+    logger.info(f"Minimum Required Accuracy: {min_accuracy*100:.1f}%")
     
-    print(f"Done. Passed: {passed}/{total}. See logs for details.")
+    summary_path = LOG_DIR / "scientific_benchmark_summary.json"
+    summary_path.write_text(json.dumps({
+        "passed": passed,
+        "total": total,
+        "accuracy": accuracy,
+        "min_accuracy": min_accuracy,
+        "success": accuracy >= min_accuracy,
+        "log_file": str(LOG_FILE),
+    }, indent=2), encoding="utf-8")
+
+    print(f"Done. Passed: {passed}/{total}. Accuracy: {accuracy*100:.1f}%. See logs for details.")
+    if accuracy < min_accuracy:
+        print(f"FAIL: accuracy {accuracy:.3f} below required {min_accuracy:.3f}")
+        return 1
+    return 0
 
 if __name__ == "__main__":
-    run_scientific_benchmark()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min-accuracy", type=float, default=0.625)
+    args = parser.parse_args()
+    raise SystemExit(run_scientific_benchmark(min_accuracy=args.min_accuracy))

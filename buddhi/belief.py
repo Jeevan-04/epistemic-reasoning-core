@@ -45,6 +45,10 @@ class Belief:
     template: str
     canonical: Dict[str, Any]
     confidence: float
+    activation: float = 1.0
+    support_count: int = 1
+    source_reliability: float = 1.0
+    belief_strength: Optional[float] = None
     original_text: Optional[str] = None
     statement_text: Optional[str] = None
     statement_text: Optional[str] = None
@@ -63,7 +67,6 @@ class Belief:
     
     # Lifecycle
     decay_rate: float = 0.995
-    activation: float = 1.0  # Starts fresh
     evidence_count: int = 1
     
     # History
@@ -95,6 +98,12 @@ class Belief:
 
         if self.statement_text is None and self.original_text:
             self.statement_text = self.original_text
+
+        if self.belief_strength is None:
+            # Compatibility bridge for v0: old code used confidence as both
+            # belief strength and retrieval availability. New research code should
+            # treat truth status and activation separately.
+            self.belief_strength = self.confidence
         
         # Infer polarity from template or explicitly set?
         # Assuming Manas handles polarity detection and puts it in source or template?
@@ -200,8 +209,12 @@ class Belief:
         """Reinforce belief confidence based on usage success."""
         if success:
             self.confidence = min(1.0, self.confidence + boost)
+            self.activation = min(1.0, self.activation + boost)
+            self.belief_strength = min(1.0, (self.belief_strength or self.confidence) + boost)
         else:
             self.confidence = max(0.01, self.confidence - boost)
+            self.activation = max(0.0, self.activation - boost)
+            self.belief_strength = max(0.01, (self.belief_strength or self.confidence) - boost)
         self.evidence_count += 1
+        self.support_count += 1
         self.updated_at = datetime.now(timezone.utc)
-

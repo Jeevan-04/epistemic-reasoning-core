@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "version": "0.1",
+    "description": "Small family-based benchmark for research-methodology development. This is not yet the final evaluation set."
+  },
+  "cases": [
+    {
+      "id": "direct-001",
+      "family": "direct_fact_recall",
+      "facts": ["Dogs are mammals."],
+      "query": "Are dogs mammals?",
+      "expected": "YES"
+    },
+    {
+      "id": "open-001",
+      "family": "open_world_refusal",
+      "facts": ["Dogs are mammals."],
+      "query": "Are ghosts mammals?",
+      "expected": "UNKNOWN"
+    },
+    {
+      "id": "tax-001",
+      "family": "taxonomic_transitivity",
+      "facts": ["Socrates is a human.", "A human is a mammal."],
+      "query": "Is Socrates a mammal?",
+      "expected": "YES"
+    },
+    {
+      "id": "asym-001",
+      "family": "directionality_asymmetry",
+      "facts": ["Socrates is a human.", "A human is a mammal."],
+      "query": "Is a mammal a Socrates?",
+      "expected": "UNKNOWN"
+    },
+    {
+      "id": "defeat-001",
+      "family": "defeasible_inheritance",
+      "facts": ["Birds can fly.", "Penguins are birds.", "Penguins cannot fly."],
+      "query": "Do penguins fly?",
+      "expected": "NO"
+    },
+    {
+      "id": "nixon-001",
+      "family": "nixon_horizontal_conflict",
+      "facts": ["Nixon is a quaker.", "Nixon is a republican.", "Quakers can fly.", "Republicans cannot fly."],
+      "query": "Can Nixon fly?",
+      "expected": "CONFLICT"
+    },
+    {
+      "id": "ground-001",
+      "family": "predicate_grounding",
+      "facts": ["Dogs are mammals."],
+      "query": "Do dogs play poker?",
+      "expected": "UNKNOWN"
+    },
+    {
+      "id": "temporal-001",
+      "family": "temporal_decay_reactivation",
+      "facts": ["Rumours can fade."],
+      "query": "Can rumours fade?",
+      "expected": "YES"
+    },
+    {
+      "id": "source-001",
+      "family": "source_reliability_conflict",
+      "facts": ["Ravens can fly.", "Ravens cannot fly."],
+      "query": "Can ravens fly?",
+      "expected": "CONFLICT"
+    },
+    {
+      "id": "para-001",
+      "family": "adversarial_paraphrase",
+      "facts": ["Penguins cannot fly."],
+      "query": "Do penguins fly?",
+      "expected": "NO"
+    }
+  ]
+}
+

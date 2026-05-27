@@ -1,229 +1,137 @@
-# Episteme: A Persistent Epistemic Reasoning Core
+# Episteme
 
-> **"Logic determines Validity. Numbers determine Availability."**
+Episteme is a compact, proof-carrying reasoning prototype that separates parser,
+memory, and defeasible reasoning into explicit layers. The repository is written
+as a research codebase rather than a product demo: the goal is to keep the
+architecture auditable, the formal claims bounded, and the evaluation reproducible.
 
-Episteme is a research-grade **epistemic reasoning system** designed to solve the "Hallucination Problem" in symbolic AI. It layers a quantitative belief lifecycle (confidence, decay) on top of a rigorous non-monotonic logic engine.
+## Research Boundary
 
-Unlike neuro-symbolic hybrids that blend logic and probability into a single vector space, Episteme maintains a strict **Architectural Separation of Concerns**:
-1.  **Symbolic Core (Buddhi)**: Determines what is *true* based on structural entailment.
-2.  **Quantitative Shell (Chitta)**: Determines what is *accessible* based on evidence and time.
+Episteme is presented as:
 
----
+- proof-carrying symbolic reasoning
+- explicit argument traces
+- defeasible conflict handling
+- parser/reasoner separation
+- reproducible benchmark and paper artifacts
 
-## 1. Architectural Overview (MARC)
+Episteme is not presented as:
 
-Episteme follows the **MARC** (Modular Architecture for Reasoning and Cognition) paradigm, inspired by Sanskrit epistemology.
+- AGI
+- cognition
+- universal reasoning
+- a complete theory of intelligence
+- unrestricted natural-language understanding
+
+The current truth reset and open limitations are tracked in [RESEARCH_STATUS.md](RESEARCH_STATUS.md). The formal target is split across [docs/FORMAL_CORE.md](docs/FORMAL_CORE.md) and [docs/ALGORITHMIC_SPEC.md](docs/ALGORITHMIC_SPEC.md).
+
+## Architecture
+
+The runtime is organized as a small pipeline with a controller on top:
 
 ```mermaid
-graph TD
-    User[User / World] -->|Natural Language| Manas[Manas: Acquisition]
-    Manas -->|Belief Proposal| Ahankara[Ahankara: Controller]
-    Ahankara -->|Store| Chitta[Chitta: Persistent Graph]
-    Ahankara -->|Query| Buddhi[Buddhi: Logic Engine]
-    Chitta -->|Graph State| Buddhi
-    Buddhi -->|Verdict| Ahankara
-    Ahankara -->|Response| User
+flowchart TD
+    User[User / Query] --> Manas[Manas<br/>parse and normalize]
+    Manas --> Ahankara[Ahankara<br/>orchestrate store + reason]
+    Ahankara --> Chitta[Chitta<br/>persistent belief graph]
+    Ahankara --> Buddhi[Buddhi<br/>build arguments and resolve defeat]
+    Chitta --> Buddhi
+    Buddhi --> Proof[Proof object<br/>verdict + trace]
+    Proof --> Ahankara
+    Ahankara --> User
 ```
 
----
+The documentation and evaluation pipeline is separate from runtime execution:
 
-## 2. Phase I: Acquisition (Manas)
-*State: Stateless Parsing*
-
-Manas ("The Mind") is responsible for converting raw, unstructured language into structured, normalized belief proposals. It does **not** reason; it only perceives.
-
-### A. The Parsing Pipeline
-1.  **Intent Detection**: Distinguishes `Assertion` (Teaching) from `Query` (Asking).
-2.  **Template Matching**: Assigns a structural template (`is_a`, `has_attr`, `relation`).
-3.  **Entity Normalization**: Maps diverse linguistic forms to canonical entities.
-    *   `"Socrates"`, `"The Socrates"`, `"socrates"` $\rightarrow$ `socrates`
-    *   `"Birds"`, `"A bird"`, `"The bird"` $\rightarrow$ `bird`
-
-### B. Strict Sanitation (The Immune System)
-To prevent "Graph Pollution", Manas strictly rejects meaningless entities.
-*   **Numeric Rejection**: Entities like `"1"`, `"100"` are rejected (unless explicitly mathematical).
-*   **Stopword Rejection**: `"is"`, `"the"`, `"a"` are prevented from becoming nodes.
-*   **Namespace Separation**: A Predicate (e.g., `is_a`) cannot also be an Entity.
-
-### C. Output: The Belief Proposal
-Structure of a parsed sentence: *"Socrates is a human."*
-```json
-{
-  "template": "is_a",
-  "raw_text": "Socrates is a human.",
-  "entities": ["socrates", "human"],
-  "canonical": {
-    "subject": "socrates",
-    "predicate": "is_a",
-    "object": "human"
-  },
-  "confidence": 0.9,
-  "polarity": 1, 
-  "epistemic_type": "DEFAULT"
-}
+```mermaid
+flowchart LR
+    code[Core modules<br/>manas/ chitta/ buddhi/ ahankara/ sakshin/ hre/] --> tests[tests/]
+    code --> scripts[scripts/]
+    scripts --> paper[paper/episteme_paper.tex]
+    scripts --> tables[paper/generated_eval_tables.tex]
+    scripts --> figures[paper/figures/]
+    tests --> logs[tests/logs/]
+    docs[docs/FORMAL_CORE.md<br/>docs/ALGORITHMIC_SPEC.md] --> paper
 ```
 
----
+## Core Modules
 
-## 3. Phase II: Storage (Chitta)
-*State: Persistent & Quantitative*
+| Module | Role |
+| --- | --- |
+| [manas/](manas/) | Parses and normalizes natural-language input into belief proposals. |
+| [chitta/](chitta/) | Stores beliefs, provenance, and activation state in persistent graph form. |
+| [buddhi/](buddhi/) | Constructs arguments, detects attacks, and resolves defeat. |
+| [ahankara/](ahankara/) | Orchestrates parser, memory, and reasoner as a single runtime. |
+| [hre/](hre/) | Hypothetical reasoning support for sandboxed what-if queries. |
+| [sakshin/](sakshin/) | Observer and introspection layer for traces and monitoring. |
 
-Chitta ("Memory") stores beliefs as a hypergraph. It manages the **Lifecycle** of a belief using quantitative parameters.
+## Formal Documents
 
-### A. The Belief Object
-Every belief in the db has these core parameters:
-*   **`id`**: Unique UUID.
-*   **`epistemic_state`**: The logical rank (`AXIOM`, `DEFAULT`, `OBSERVATION`, `EXCEPTION`).
-*   **`confidence`** ($C$): A float $0.0 \dots 1.0$ representing strength.
-*   **`evidence_count`** ($N$): Number of times this belief has been reinforced.
-*   **`active`**: Boolean flag. If $False$, the belief is "forgotten" and invisible to logic.
+- [docs/FORMAL_CORE.md](docs/FORMAL_CORE.md): mathematical target for beliefs, arguments, defeat ordering, and verdict semantics.
+- [docs/ALGORITHMIC_SPEC.md](docs/ALGORITHMIC_SPEC.md): algorithm sketch, complexity discussion, and known implementation gaps.
+- [paper/episteme_paper.tex](paper/episteme_paper.tex): manuscript source for the paper.
+- [RESEARCH_STATUS.md](RESEARCH_STATUS.md): current truth reset, benchmark state, and known failure modes.
+- [RESEARCH_JOURNAL.md](RESEARCH_JOURNAL.md): development and experiment log.
 
-### B. Quantitative Formulas
+## Repository Layout
 
-**1. Reinforcement (Evidence Boosting)**
-When a belief is re-stated, its confidence boosts asymptotically towards 1.0.
+- [main.py](main.py): CLI entry point for the prototype.
+- [showcase_episteme.py](showcase_episteme.py): demo script for the high-level reasoning flow.
+- [scripts/](scripts/): benchmark runners, reproduction helpers, and paper artifact generation.
+- [tests/](tests/): regression tests and benchmark definitions.
+- [paper/](paper/): manuscript source plus generated tables and optional figures.
+- [docs/](docs/): formal and algorithmic specification drafts.
 
-```math
-New_Conf = Old_Conf + (1 - Old_Conf) * Alpha
-```
-*(Where Alpha is logical learning rate, e.g., 0.05)*
+## Quick Start
 
-**2. Temporal Decay**
-Over time, unsupported beliefs fade.
+Create an environment and install the Python dependencies:
 
-```math
-Conf_t = Conf_0 * (Decay_Rate ^ Time_Steps)
-```
-*(Typical Decay_Rate = 0.995)*
-
-**3. Logic Gating**
-Beliefs must cross a semantic threshold to be "visible" to the Logic Engine.
-
-```text
-IF Conf > Threshold:  Status = ACTIVE   (Visible to Buddhi)
-IF Conf <= Threshold: Status = INACTIVE (Invisible to Buddhi)
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
----
+Run the core test suite:
 
-## 4. Phase III: Reasoning (Buddhi)
-*State: Logical & Non-Monotonic*
-
-Buddhi ("Intellect") determines Truth. It uses a **Lattice of Truth** to resolve conflicts between active beliefs.
-
-### A. The Lattice of Truth (Hierarchy)
-Not all truths are equal. Episteme ranks them:
-1.  **AXIOM**: Immutable laws (e.g., "A triangle has 3 sides").
-2.  **OBSERVATION**: Direct empirical facts ("The sky is currently blue").
-3.  **EXCEPTION**: Specific overrides ("Penguins don't fly").
-4.  **DEFAULT**: General rules ("Birds fly").
-5.  **HYPOTHESIS**: Unverified assumptions.
-
-### B. The Conflict Matrix
-How Episteme decides when beliefs contradict:
-
-| Scenario | Condition | Verdict | Reason |
-| :--- | :--- | :--- | :--- |
-| **No Conflict** | Only one valid path exists | `YES` / `NO` | Entailment |
-| **Vertical Conflict** | Path A (Neg) is shorter than Path B (Pos) | **Specific Wins** | Specificity Override (Penguin > Bird) |
-| **Rank Conflict** | Path A (Axiom) vs Path B (Default) | **Rank Wins** | Epistemic Superiority |
-| **Horizontal Conflict** | Rank Equal, Distance Equal, Signs Opposed | **CONFLICT** | The Nixon Diamond (Quaker vs Republican) |
-
----
-
-## 5. Advanced Epistemic Nuances
-
-Episteme handles subtle logical distinctions that break standard RAG or Graph-RAG systems.
-
-### A. Taxonomy & Transitivity
-The system automatically constructs a **Taxonomic Backbone**.
-*   **Input**: `Socrates is Human` + `Human is Mammal` + `Mammal is Animal`.
-*   **Inference**: `Socrates is Animal` (Distance 3).
-*   **Nuance**: This is **Directional**. It will *not* infer `Animal is Socrates`.
-
-### B. Defeasible Inheritance (The "But" Clause)
-The system understands that specific rules override general ones.
-*   **General**: "Mammals have hair" (DEFAULT).
-*   **Specific**: "Whales are mammals" + "Whales do NOT have hair" (EXCEPTION).
-*   **Result**: 
-    *   Query `Do mammals have hair?` -> **YES** (General case).
-    *   Query `Do whales have hair?` -> **NO** (Specific override).
-
-### C. The Open World Assumption
-Episteme distinguishes between **FALSE** and **UNKNOWN**.
-*   **FALSE**: Explicit negation found ("Socrates is NOT a god").
-*   **UNKNOWN**: No path found ("Socrates is a plumber?"). 
-*   **Benefit**: This prevents the "Hallucination of Negation" where models say "No" just because they explicitly don't know "Yes".
-
----
-
-## 6. Benchmarks & Validation
-Episteme is validated against a **Brutal Benchmark** suite of 1,050 test cases.
-
-### Category Breakdown
-| Category | Cases | Accuracy | Insight |
-| :--- | :---: | :---: | :--- |
-| **Compositional Logic** | 70 | **100%** | Handles multi-step chains ($A \to B \to C$) perfectly. |
-| **Ungrounded Refusal** | 150 | **100%** | Correctly answers `REFUSED` for unknown facts instead of hallucinating `NO`. |
-| **Entity Ambiguity** | 50 | **100%** | Distinguishes distinct entities with same names (if context differs). |
-| **Cross-Frame** | 150 | **98%** | Prevents context leakage between independent scenarios. |
-| **Explicit Contradiction** | 350 | **74.6%** | Identifying *why* something is a contradiction is harder than just spotting it. |
-| **Inheritance Exception** | 150 | **60.7%** | Specificity logic is complex; V1.0 greatly improved this over V0 (18%). |
-
----
-
-## 6. Live System Output (Traces)
-*Actual logs from the Grand Showcase (`showcase_episteme.py`)*
-
-### A. Handling Specificity (The Penguin Problem)
-*Goal: Prove that knowledge of a subclass overrides the superclass.*
-
-**Input:**
-1.  "Birds fly." (DEFAULT)
-2.  "Penguins are birds."
-3.  "Penguins do not fly." (EXCEPTION)
-
-**Trace:**
-```text
-➤ Query: 'Does Tweety fly?'
-  [Buddhi] Path 1 (Positive): Tweety -> Penguin -> Bird -> Fly (Distance 2)
-  [Buddhi] Path 2 (Negative): Tweety -> Penguin -> Not Fly (Distance 1)
-  
-  VERDICT: NO
-  Reason: Specificity Win: Negative penguin (Dist 1) overrides Positive bird (Dist 2)
+```bash
+pytest -q
 ```
 
-### B. Handling Ambiguity (The Nixon Diamond)
-*Goal: Identify when logic is genuinely inconclusive.*
+Run the showcase and the reproducibility script:
 
-**Input:**
-1.  "Quakers are pacifists."
-2.  "Republicans are not pacifists."
-3.  "Nixon is a Quaker."
-4.  "Nixon is a Republican."
-
-**Trace:**
-```text
-➤ Query: 'Is Nixon a pacifist?'
-  [Buddhi] Path 1 (Pos): Nixon -> Quaker -> Pacifist (Dist 1, Rank: Default)
-  [Buddhi] Path 2 (Neg): Nixon -> Republican -> Not Pacifist (Dist 1, Rank: Default)
-  
-  VERDICT: CONFLICT
-  Conflict Detected: Horizontal Conflict: quaker (Pos) vs republican (Neg) at equal distance 1.
+```bash
+python3 showcase_episteme.py
+python3 scripts/reproduce_current_results.py
 ```
 
-### C. Quantitative Decay
-*Goal: Show logic reacting to confidence loss.*
+If you have a LaTeX toolchain installed, compile the paper from [paper/episteme_paper.tex](paper/episteme_paper.tex):
 
-**Trace:**
-```text
-➤ Event: 'Market will crash' (Confidence: 0.1)
-  [Buddhi] Query: 'Will market crash?' -> YES
-  
-➤ Time passes... (Decay applied)
-  [Chitta] 📉 Deactivating 'Market will crash' (Conf 0.05 < 0.1 Threshold)
-  
-➤ Query: 'Will market crash?'
-  VERDICT: UNKNOWN
-  Reason: No active beliefs found.
+```bash
+cd paper
+pdflatex -interaction=nonstopmode episteme_paper.tex
+bibtex episteme_paper
+pdflatex -interaction=nonstopmode episteme_paper.tex
+pdflatex -interaction=nonstopmode episteme_paper.tex
 ```
+
+## Generated Artifacts
+
+Some repository outputs are generated rather than hand-maintained:
+
+- [paper/generated_eval_tables.tex](paper/generated_eval_tables.tex)
+- [paper/figures/](paper/figures/)
+- [tests/logs/](tests/logs/)
+
+These can be regenerated from the scripts in [scripts/](scripts/) and should not be edited by hand.
+
+## Current Focus
+
+The current workstream is deliberately narrow:
+
+1. keep the paper grounded and reviewer-safe,
+2. preserve a clear split between parsing, grounding, and reasoning,
+3. use benchmark artifacts to localize failures instead of making broad claims,
+4. keep the repository reproducible and easy to audit.
+
+For the live status of benchmark results and limitations, refer to [RESEARCH_STATUS.md](RESEARCH_STATUS.md). For the formal target, refer to [docs/FORMAL_CORE.md](docs/FORMAL_CORE.md) and [docs/ALGORITHMIC_SPEC.md](docs/ALGORITHMIC_SPEC.md).

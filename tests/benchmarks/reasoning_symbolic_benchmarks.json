@@ -1,0 +1,72 @@
+[
+  {
+    "id": "sym-mi-001",
+    "category": "multi_inheritance",
+    "title": "Penguin inheritance basic",
+    "premises": [
+      "default(bird, fly)",
+      "is_a(penguin, bird)",
+      "default(penguin, fly, -)"
+    ],
+    "query": "query(penguin, fly)",
+    "expected": "NO",
+    "notes": "Controlled symbolic form of the classic penguin exception case."
+  },
+  {
+    "id": "sym-mi-002",
+    "category": "multi_inheritance",
+    "title": "Military penguin override",
+    "premises": [
+      "default(bird, fly)",
+      "is_a(penguin, bird)",
+      "is_a(military_penguin, penguin)",
+      "default(military_penguin, fly)",
+      "default(penguin, fly, -)"
+    ],
+    "query": "query(military_penguin, fly)",
+    "expected": "YES",
+    "notes": "Specific positive default overrides the inherited penguin exception."
+  },
+  {
+    "id": "sym-mi-004",
+    "category": "multi_inheritance",
+    "title": "Contradiction from two parents",
+    "premises": [
+      "default(a, p)",
+      "default(b, p, -, rank=1)",
+      "is_a(x, a)",
+      "is_a(x, b)"
+    ],
+    "query": "query(x, p)",
+    "expected": "CONFLICT",
+    "notes": "Equal-ranked conflicting defaults from two parents."
+  },
+  {
+    "id": "sym-mi-005",
+    "category": "multi_inheritance",
+    "title": "Priority by rank",
+    "premises": [
+      "default(a, p, rank=1)",
+      "default(b, p, -, rank=2)",
+      "is_a(y, a)",
+      "is_a(y, b)"
+    ],
+    "query": "query(y, p)",
+    "expected": "NO",
+    "notes": "Higher-rank negative should win under current defeat ordering."
+  },
+  {
+    "id": "sym-cyc-001",
+    "category": "cyclic_taxonomy",
+    "title": "Simple cycle",
+    "premises": [
+      "is_a(a, b)",
+      "is_a(b, c)",
+      "is_a(c, a)",
+      "default(b, can_q)"
+    ],
+    "query": "query(a, q)",
+    "expected": "YES",
+    "notes": "Cycle should not prevent inheritance from the ancestor chain."
+  }
+]

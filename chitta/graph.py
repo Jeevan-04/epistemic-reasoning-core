@@ -180,6 +180,10 @@ class ChittaGraph:
                 "canonical": belief.canonical,
                 "active": belief.active,
                 "confidence": belief.confidence,
+                "activation": getattr(belief, "activation", belief.confidence),
+                "support_count": getattr(belief, "support_count", belief.evidence_count),
+                "source_reliability": getattr(belief, "source_reliability", 1.0),
+                "belief_strength": getattr(belief, "belief_strength", belief.confidence),
                 "epistemic_state": e_state,
                 "entities": list(belief.entities),
                 "predicates": list(belief.predicates),
@@ -247,6 +251,10 @@ class ChittaGraph:
                     template=b_dict["template"],
                     canonical=b_dict["canonical"],
                     confidence=b_dict["confidence"],
+                    activation=b_dict.get("activation", b_dict["confidence"]),
+                    support_count=b_dict.get("support_count", b_dict.get("evidence_count", 1)),
+                    source_reliability=b_dict.get("source_reliability", 1.0),
+                    belief_strength=b_dict.get("belief_strength", b_dict["confidence"]),
                     epistemic_state=b_dict["epistemic_state"],
                     original_text=b_dict["original_text"],
                     statement_text=b_dict["statement_text"],
@@ -369,7 +377,15 @@ class ChittaGraph:
         self.state_index[belief.epistemic_state].add(belief.id)
         
         for entity in belief.entities:
+            # Index original entity token
             self.entity_index[entity].add(belief.id)
+            # Also index a normalized lowercase singular form to improve lookups
+            try:
+                norm = entity.lower().rstrip('s')
+                if norm:
+                    self.entity_index[norm].add(belief.id)
+            except Exception:
+                pass
         
         for predicate in belief.predicates:
             self.predicate_index[predicate].add(belief.id)
@@ -891,20 +907,25 @@ class ChittaGraph:
     # QUANTITATIVE LAYER: DECAY
     # ═══════════════════════════════════════════════════════════════
 
-    def apply_decay(self, steps: int = 1, threshold: float = 0.1) -> int:
+    def apply_decay(self, steps: int = 1, threshold: float = 0.1, theta_off: float | None = None) -> int:
         """
         Apply temporal decay to all non-AXIOM beliefs.
         
-        Simulates memory fading. If confidence drops below threshold,
-        the belief becomes INACTIVE.
+        Simulates memory fading. In the v0 compatibility path, confidence is
+        still decayed. The research path additionally decays activation and uses
+        activation hysteresis for availability gating.
         
         Args:
             steps: number of decay steps to apply
-            threshold: confidence threshold for deactivation
+            threshold: legacy confidence threshold for deactivation
+            theta_off: activation threshold for deactivation. Defaults to threshold.
             
         Returns:
             count of beliefs deactivated
         """
+        if theta_off is None:
+            theta_off = threshold
+
         deactivated_count = 0
         
         for belief in self.beliefs.values():
@@ -918,10 +939,14 @@ class ChittaGraph:
             # Apply decay
             decay_factor = belief.decay_rate ** steps
             belief.confidence *= decay_factor
+            belief.activation *= decay_factor
             
             # Check threshold
-            if belief.confidence < threshold:
-                print(f"[Chitta] 📉 Deactivating '{belief.statement_text}' (Conf {belief.confidence:.3f} < {threshold})")
+            if belief.activation < theta_off or belief.confidence < threshold:
+                print(
+                    f"[Chitta] 📉 Deactivating '{belief.statement_text}' "
+                    f"(Activation {belief.activation:.3f} < {theta_off} or Conf {belief.confidence:.3f} < {threshold})"
+                )
                 belief.deactivate()
                 deactivated_count += 1
             
@@ -974,6 +999,7 @@ class ChittaGraph:
         if existing:
             # EVIDENCE ACCUMULATION: Repeated assertion
             existing.evidence_count += 1
+            existing.support_count += 1
             
             # Confidence boost: ε * log(evidence_count)
             # CRITICAL: ε = 0.05 is calibrated, DO NOT increase
@@ -985,6 +1011,8 @@ class ChittaGraph:
             
             # Update confidence
             existing.confidence = new_confidence
+            existing.belief_strength = new_confidence
+            existing.activation = min(1.0, existing.activation + boost)
             existing.updated_at = now_utc()
             
             # Add provenance
@@ -1010,6 +1038,7 @@ class ChittaGraph:
             template=proposal["template"],
             canonical=proposal["canonical"],
             confidence=confidence,
+            source_reliability=proposal.get("source_reliability", 1.0),
             epistemic_state=proposal.get("epistemic_type", "asserted"),
             original_text=proposal.get("raw_text"),
             statement_text=proposal.get("raw_text"),
@@ -1018,6 +1047,7 @@ class ChittaGraph:
                 "input": "manas",
                 "parser": "manas_v0.1",
                 "parser_confidence": proposal.get("parser_confidence", 0.5),
+                "source": proposal.get("source"),
             },
             polarity_value=proposal.get("polarity", 1),
         )

@@ -23,3 +23,9 @@ tests_nixon_db/
 tests_logic_db/
 *.db
 *.sqlite
+
+# Generated research artifacts
+paper/generated_eval_tables.tex
+paper/figures/
+tests/logs/
+reproducibility_bundle.zip

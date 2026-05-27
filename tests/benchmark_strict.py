@@ -2,6 +2,7 @@ import unittest
 import json
 import os
 import sys
+import argparse
 from pathlib import Path
 
 # Fix import path for running from tests/ dir
@@ -101,5 +102,27 @@ class TestStrictBenchmark(unittest.TestCase):
         print(f"RESULT: {pass_count}/{total} ({accuracy:.1f}%)")
         print("="*60)
 
+        min_accuracy = float(os.environ.get("EPISTEME_STRICT_MIN_ACCURACY", "0.491"))
+        summary_path = Path(__file__).parent / "logs" / "strict_benchmark_summary.json"
+        summary_path.parent.mkdir(exist_ok=True)
+        summary_path.write_text(json.dumps({
+            "passed": pass_count,
+            "total": total,
+            "accuracy": pass_count / total if total else 0.0,
+            "min_accuracy": min_accuracy,
+            "success": (pass_count / total if total else 0.0) >= min_accuracy,
+        }, indent=2), encoding="utf-8")
+
+        self.assertGreaterEqual(
+            pass_count / total if total else 0.0,
+            min_accuracy,
+            f"Strict benchmark accuracy dropped below {min_accuracy:.3f}",
+        )
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min-accuracy", type=float, default=0.491)
+    args, remaining = parser.parse_known_args()
+    os.environ["EPISTEME_STRICT_MIN_ACCURACY"] = str(args.min_accuracy)
+    sys.argv = [sys.argv[0]] + remaining
     unittest.main()

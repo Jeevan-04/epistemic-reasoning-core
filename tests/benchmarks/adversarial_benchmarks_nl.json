@@ -1,0 +1,622 @@
+[
+  {
+    "id": "mi-001",
+    "category": "multi_inheritance",
+    "title": "Penguin inheritance basic",
+    "premises": [
+      "Birds fly.",
+      "Penguins are birds.",
+      "Penguins do not fly."
+    ],
+    "query": "Do penguins fly?",
+    "expected": "NO",
+    "notes": "Classic exception to general rule; specificity should defeat general rule."
+  },
+  {
+    "id": "mi-002",
+    "category": "multi_inheritance",
+    "title": "Military penguins override",
+    "premises": [
+      "Birds fly.",
+      "Penguins are birds.",
+      "Military penguins are penguins.",
+      "Military penguins fly.",
+      "Penguins do not fly."
+    ],
+    "query": "Do military penguins fly?",
+    "expected": "YES",
+    "notes": "A subclass with a positive exception that should override the penguin exception."
+  },
+  {
+    "id": "mi-003",
+    "category": "multi_inheritance",
+    "title": "Conflicting subclass rules",
+    "premises": [
+      "Mammals give birth to live young.",
+      "Bats are mammals.",
+      "Bat-like birds are birds.",
+      "Bat-owl is bat-like and an owl.",
+      "Owls are nocturnal.",
+      "Bats fly.",
+      "Owls fly."
+    ],
+    "query": "Does Bat-owl fly?",
+    "expected": "YES",
+    "notes": "Multiple inheritance from bat and owl families, both flying."
+  },
+  {
+    "id": "mi-004",
+    "category": "multi_inheritance",
+    "title": "Contradiction from two parents",
+    "premises": [
+      "Typically, A entities P.",
+      "Typically, B entities do not P.",
+      "X is both an A and a B."
+    ],
+    "query": "Is X P?",
+    "expected": "CONFLICT",
+    "notes": "Test equal-ranked conflicting defaults from two parents."
+  },
+  {
+    "id": "mi-005",
+    "category": "multi_inheritance",
+    "title": "Priority by rank",
+    "premises": [
+      "Typically, A P (rank 1).",
+      "Typically, B do not P (rank 2).",
+      "Y is A and B."
+    ],
+    "query": "Is Y P?",
+    "expected": "NO",
+    "notes": "Demonstrates ranking preference (higher numeric rank weaker)."
+  },
+  {
+    "id": "mi-006",
+    "category": "multi_inheritance",
+    "title": "Inherited exception chain",
+    "premises": [
+      "Birds fly.",
+      "Schooner-bird is a bird.",
+      "Typically, Schooner-birds are heavy and do not fly.",
+      "Schooner-bird juveniles sometimes fly."
+    ],
+    "query": "Do schooner-bird juveniles fly?",
+    "expected": "UNKNOWN",
+    "notes": "Ambiguous between heavyweight exception and juvenile exception."
+  },
+  {
+    "id": "mi-007",
+    "category": "multi_inheritance",
+    "title": "Diamond inheritance with opposing defaults",
+    "premises": [
+      "Base implies P.",
+      "Left subclass implies not P.",
+      "Right subclass implies not P.",
+      "Leaf inherits from Left and Right."
+    ],
+    "query": "Is Leaf P?",
+    "expected": "NO",
+    "notes": "Both intermediate nodes provide same negative default."
+  },
+  {
+    "id": "mi-008",
+    "category": "multi_inheritance",
+    "title": "Diamond with conflicting intermediates",
+    "premises": [
+      "Base implies P.",
+      "Left subclass implies not P.",
+      "Right subclass implies P.",
+      "Leaf inherits from Left and Right."
+    ],
+    "query": "Is Leaf P?",
+    "expected": "CONFLICT",
+    "notes": "Requires defeat ordering or specificity tiebreak."
+  },
+  {
+    "id": "mi-009",
+    "category": "multi_inheritance",
+    "title": "Specificity wins over strength",
+    "premises": [
+      "Animals move.",
+      "Birds move by flying.",
+      "Penguins are birds.",
+      "Penguins move by swimming."
+    ],
+    "query": "How do penguins move?",
+    "expected": "swimming",
+    "notes": "Specific action should override general 'fly'."
+  },
+  {
+    "id": "mi-010",
+    "category": "multi_inheritance",
+    "title": "Conflicting deep inheritance",
+    "premises": [
+      "A are B.",
+      "B are C.",
+      "D are C.",
+      "X is instance of A and D."
+    ],
+    "query": "Is X P?",
+    "expected": "CONFLICT",
+    "notes": "Deep chains produce competing influences."
+  },
+  {
+    "id": "rel-001",
+    "category": "reliability_conflict",
+    "title": "Trusted vs untrusted source",
+    "premises": [
+      "TrustedSource: Vaccines work (reliability=0.95).",
+      "RandomBlog: Vaccines do not work (reliability=0.2)."
+    ],
+    "query": "Do vaccines work?",
+    "expected": "YES",
+    "notes": "Higher source reliability should tilt verdict."
+  },
+  {
+    "id": "rel-002",
+    "category": "reliability_conflict",
+    "title": "Many weak sources vs one strong",
+    "premises": [
+      "BlogA: X (r=0.2).",
+      "BlogB: X (r=0.2).",
+      "Expert: not X (r=0.9)."
+    ],
+    "query": "Is X true?",
+    "expected": "NO",
+    "notes": "Single strong contradicting source should win unless aggregation policy differs."
+  },
+  {
+    "id": "rel-003",
+    "category": "reliability_conflict",
+    "title": "Source reliability tie",
+    "premises": [
+      "According to SourceA, P.",
+      "According to SourceB, not P."
+    ],
+    "query": "Is P?",
+    "expected": "CONFLICT",
+    "notes": "Equal reliability conflicting claims should lead to CONFLICT or UNKNOWN."
+  },
+  {
+    "id": "rel-004",
+    "category": "reliability_conflict",
+    "title": "Aggregate weak support",
+    "premises": [
+      "Ten weak reports each r=0.15 say Q.",
+      "No strong contrary evidence."
+    ],
+    "query": "Is Q?",
+    "expected": "UNKNOWN",
+    "notes": "Test aggregation rule \u2014 whether many weaks can produce acceptance."
+  },
+  {
+    "id": "rel-005",
+    "category": "reliability_conflict",
+    "title": "Temporal reliability shift",
+    "premises": [
+      "According to OldTrusted, R.",
+      "According to NewSource, not R."
+    ],
+    "query": "Is R?",
+    "expected": "CONFLICT",
+    "notes": "Tests interaction of recency vs reliability."
+  },
+  {
+    "id": "rel-006",
+    "category": "reliability_conflict",
+    "title": "Chain of trust",
+    "premises": [
+      "A trusts B (weight 0.9).",
+      "B says S (r=0.8).",
+      "C says not S (r=0.7)."
+    ],
+    "query": "Is S?",
+    "expected": "YES",
+    "notes": "Trust propagation and transitive reliability."
+  },
+  {
+    "id": "rel-007",
+    "category": "reliability_conflict",
+    "title": "Source with partial reliability",
+    "premises": [
+      "Source: P with confidence 0.6.",
+      "CounterSource: not P with confidence 0.55."
+    ],
+    "query": "Is P?",
+    "expected": "CONFLICT",
+    "notes": "Close reliability values should produce ambiguous result."
+  },
+  {
+    "id": "rel-008",
+    "category": "reliability_conflict",
+    "title": "Misinformation cascade",
+    "premises": [
+      "Many low-quality mirrors repeat claim T (r=0.1 each).",
+      "One authoritative refutation (r=0.95) says not T."
+    ],
+    "query": "Is T?",
+    "expected": "NO",
+    "notes": "Authority should defeat cascaded low-reliability claims."
+  },
+  {
+    "id": "act-001",
+    "category": "activation_decay",
+    "title": "Old strong belief vs recent weak override",
+    "premises": [
+      "2000: High confidence claim A (confidence=0.95).",
+      "2025: Low confidence claim not A (confidence=0.4)."
+    ],
+    "query": "Is A?",
+    "expected": "YES",
+    "notes": "Older high-confidence claim may persist despite recent weak override."
+  },
+  {
+    "id": "act-002",
+    "category": "activation_decay",
+    "title": "Recency beats old strong",
+    "premises": [
+      "2000: High confidence B (0.9).",
+      "2025: High confidence not B (0.9)."
+    ],
+    "query": "Is B?",
+    "expected": "CONFLICT",
+    "notes": "Two high-confidence contradictory claims at different times."
+  },
+  {
+    "id": "act-003",
+    "category": "activation_decay",
+    "title": "Decay leading to abstention",
+    "premises": [
+      "1990: Moderate C (0.7).",
+      "No recent evidence."
+    ],
+    "query": "Is C?",
+    "expected": "UNKNOWN",
+    "notes": "Belief should decay to UNKNOWN if not reinforced."
+  },
+  {
+    "id": "act-004",
+    "category": "activation_decay",
+    "title": "Gradual override",
+    "premises": [
+      "2010: Claim D (0.8).",
+      "2015: not D (0.6).",
+      "2020: not D (0.7)."
+    ],
+    "query": "Is D?",
+    "expected": "NO",
+    "notes": "Multiple later supports for not D gradually override original D."
+  },
+  {
+    "id": "act-005",
+    "category": "activation_decay",
+    "title": "Activation threshold test",
+    "premises": [
+      "Old claim E (0.6).",
+      "Recent weak contrary (0.5)."
+    ],
+    "query": "Is E?",
+    "expected": "UNKNOWN",
+    "notes": "Edge threshold between retention and overturning."
+  },
+  {
+    "id": "act-006",
+    "category": "activation_decay",
+    "title": "Temporal aggregation",
+    "premises": [
+      "2001: F (0.6).",
+      "2005: F (0.6).",
+      "2020: not F (0.7)."
+    ],
+    "query": "Is F?",
+    "expected": "NO",
+    "notes": "Later stronger evidence should overcome multiple earlier moderate supports."
+  },
+  {
+    "id": "act-007",
+    "category": "activation_decay",
+    "title": "Short-lived spike",
+    "premises": [
+      "2024: transient G (0.9).",
+      "2025: contradictory H (0.9)."
+    ],
+    "query": "Is G?",
+    "expected": "CONFLICT",
+    "notes": "Rapid contradictory signals cause conflict."
+  },
+  {
+    "id": "act-008",
+    "category": "activation_decay",
+    "title": "Decay plus reinforcement",
+    "premises": [
+      "1999: I (0.8).",
+      "2008: I (0.3).",
+      "2019: I (0.6)."
+    ],
+    "query": "Is I?",
+    "expected": "YES",
+    "notes": "Reinforcement after partial decay should recover acceptance."
+  },
+  {
+    "id": "cyc-001",
+    "category": "cyclic_taxonomy",
+    "title": "Simple cycle",
+    "premises": [
+      "A implies B.",
+      "B implies C.",
+      "C implies A.",
+      "Typically, A P."
+    ],
+    "query": "Is A P?",
+    "expected": "YES",
+    "notes": "Ensure cycles do not explode and that defaults are preserved."
+  },
+  {
+    "id": "cyc-002",
+    "category": "cyclic_taxonomy",
+    "title": "Cycle with exception",
+    "premises": [
+      "A are B.",
+      "B are C.",
+      "C are A.",
+      "Typically, B do not P.",
+      "Typically, A P."
+    ],
+    "query": "Is A P?",
+    "expected": "CONFLICT",
+    "notes": "Conflicting defaults in cycle produce nuanced outcome."
+  },
+  {
+    "id": "cyc-003",
+    "category": "cyclic_taxonomy",
+    "title": "Cycle with specificity",
+    "premises": [
+      "Parent: Q.",
+      "Child: not Q.",
+      "Grandchild inherits Child.",
+      "Grandchild is A."
+    ],
+    "query": "Is A Q?",
+    "expected": "NO",
+    "notes": "Specific child exception should persist across cycle."
+  },
+  {
+    "id": "cyc-004",
+    "category": "cyclic_taxonomy",
+    "title": "Mutually recursive defaults",
+    "premises": [
+      "X implies Y typically.",
+      "Y implies not X typically."
+    ],
+    "query": "Is X?",
+    "expected": "CONFLICT",
+    "notes": "Mutual recursion with opposing defaults."
+  },
+  {
+    "id": "cyc-005",
+    "category": "cyclic_taxonomy",
+    "title": "Large taxonomy cycle",
+    "premises": [
+      "Chain of 6 classes A->B->C->D->E->F->A with mixed defaults."
+    ],
+    "query": "Is A P?",
+    "expected": "UNKNOWN",
+    "notes": "Stress test inference with long cycles."
+  },
+  {
+    "id": "cyc-006",
+    "category": "cyclic_taxonomy",
+    "title": "Exception that closes the cycle",
+    "premises": [
+      "A are B.",
+      "B are C.",
+      "C->A but C has exception not P."
+    ],
+    "query": "Is A P?",
+    "expected": "UNKNOWN",
+    "notes": "Complex closure of cycle with exceptions."
+  },
+  {
+    "id": "abs-001",
+    "category": "abstention_edge",
+    "title": "No evidence",
+    "premises": [],
+    "query": "Is Z?",
+    "expected": "UNKNOWN",
+    "notes": "Baseline: no inputs should yield UNKNOWN."
+  },
+  {
+    "id": "abs-002",
+    "category": "abstention_edge",
+    "title": "Balanced weak evidence",
+    "premises": [
+      "Two weak sources say S (r=0.2 each).",
+      "Two weak sources say not S (r=0.2 each)."
+    ],
+    "query": "Is S?",
+    "expected": "CONFLICT",
+    "notes": "Balanced weak evidence should lead to CONFLICT/UNKNOWN."
+  },
+  {
+    "id": "abs-003",
+    "category": "abstention_edge",
+    "title": "Soft support without commitment",
+    "premises": [
+      "One moderate source suggests T (0.55)."
+    ],
+    "query": "Is T?",
+    "expected": "UNKNOWN",
+    "notes": "Below acceptance threshold should abstain."
+  },
+  {
+    "id": "abs-004",
+    "category": "abstention_edge",
+    "title": "Conflicting strong supports",
+    "premises": [
+      "Two strong sources disagree (0.9 vs 0.9)."
+    ],
+    "query": "Is M?",
+    "expected": "CONFLICT",
+    "notes": "High-confidence conflict should produce CONFLICT."
+  },
+  {
+    "id": "abs-005",
+    "category": "abstention_edge",
+    "title": "Abstention vs explicit no",
+    "premises": [
+      "One abstaining rule (no info).",
+      "One explicit not N."
+    ],
+    "query": "Is N?",
+    "expected": "NO",
+    "notes": "Explicit negative should produce NO even if other rules abstain."
+  },
+  {
+    "id": "abs-006",
+    "category": "abstention_edge",
+    "title": "Partial abstention aggregation",
+    "premises": [
+      "Many abstentions and one weak positive."
+    ],
+    "query": "Is O?",
+    "expected": "UNKNOWN",
+    "notes": "Aggregation of abstentions should not create false confidence."
+  },
+  {
+    "id": "abs-007",
+    "category": "abstention_edge",
+    "title": "Abstain vs low negative",
+    "premises": [
+      "Abstain signals and a few low-confidence negatives."
+    ],
+    "query": "Is P?",
+    "expected": "NO",
+    "notes": "Low negatives plus abstention may tip to NO depending on policy."
+  },
+  {
+    "id": "abs-008",
+    "category": "abstention_edge",
+    "title": "Ambiguity propagation",
+    "premises": [
+      "Upstream ambiguous evidence for property Q propagates downstream."
+    ],
+    "query": "Is downstream Q?",
+    "expected": "UNKNOWN",
+    "notes": "Test ambiguity flow through inference chains."
+  },
+  {
+    "id": "exp-001",
+    "category": "argument_explosion",
+    "title": "Combinatorial rule expansion",
+    "premises": [
+      "10 independent weak defaults each implying R when combined pairwise produce proliferation of arguments."
+    ],
+    "query": "Is R?",
+    "expected": "UNKNOWN",
+    "notes": "Stress test on argument generation and pruning."
+  },
+  {
+    "id": "exp-002",
+    "category": "argument_explosion",
+    "title": "Redundant derivations",
+    "premises": [
+      "Multiple derivation paths yield same conclusion through slightly different assumptions."
+    ],
+    "query": "Is S?",
+    "expected": "YES",
+    "notes": "Ensures dedup/pruning of equivalent arguments."
+  },
+  {
+    "id": "exp-003",
+    "category": "argument_explosion",
+    "title": "Cross-coupled rules",
+    "premises": [
+      "Rules mutually create each other's premises leading to many circular argument forms."
+    ],
+    "query": "Is T?",
+    "expected": "CONFLICT",
+    "notes": "Require cycle detection and pruning."
+  },
+  {
+    "id": "exp-004",
+    "category": "argument_explosion",
+    "title": "Large conjunctions",
+    "premises": [
+      "Conclusions require large conjunctions of many weak facts."
+    ],
+    "query": "Is U?",
+    "expected": "UNKNOWN",
+    "notes": "Combinatorial explosion test for conjunctive rules."
+  },
+  {
+    "id": "exp-005",
+    "category": "argument_explosion",
+    "title": "Filtered majority",
+    "premises": [
+      "100 small rules vote for V with slight contradictions."
+    ],
+    "query": "Is V?",
+    "expected": "YES",
+    "notes": "Test efficient aggregation under explosion."
+  },
+  {
+    "id": "mix-001",
+    "category": "mixed_complexity",
+    "title": "Reliability + inheritance clash",
+    "premises": [
+      "Birds fly.",
+      "Penguins are birds.",
+      "According to SourceA, Penguins do not fly.",
+      "According to SourceB, Military penguins fly."
+    ],
+    "query": "Do penguins fly?",
+    "expected": "NO",
+    "notes": "Combine source reliability with inheritance exceptions."
+  },
+  {
+    "id": "mix-002",
+    "category": "mixed_complexity",
+    "title": "Activation, reliability, and abstention",
+    "premises": [
+      "2005: A (0.8).",
+      "2024: not A (0.6).",
+      "Untrusted: A (0.2)."
+    ],
+    "query": "Is A?",
+    "expected": "CONFLICT",
+    "notes": "Test interplay of time, confidence, and reliability."
+  },
+  {
+    "id": "mix-003",
+    "category": "mixed_complexity",
+    "title": "Deep inheritance + cycle",
+    "premises": [
+      "Long inheritance chain with a back-edge creating a cycle and an exception halfway."
+    ],
+    "query": "Is Z?",
+    "expected": "UNKNOWN",
+    "notes": "Stress multi-factor interaction."
+  },
+  {
+    "id": "mix-004",
+    "category": "mixed_complexity",
+    "title": "Adversarial default ordering",
+    "premises": [
+      "Several defaults of varying ranks and specificities deliberately arranged to test tiebreak heuristics."
+    ],
+    "query": "Is W?",
+    "expected": "CONFLICT",
+    "notes": "Evaluate defeat ordering."
+  },
+  {
+    "id": "mix-005",
+    "category": "mixed_complexity",
+    "title": "Multiple-source temporal war",
+    "premises": [
+      "Interleaved time-stamped claims from multiple sources with different reliabilities."
+    ],
+    "query": "Is L?",
+    "expected": "UNKNOWN",
+    "notes": "Complex real-world like scenario."
+  }
+]

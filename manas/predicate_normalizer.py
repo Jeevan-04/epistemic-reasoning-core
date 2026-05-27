@@ -56,6 +56,7 @@ HABITAT_PATTERNS = {
 CAPABILITY_PATTERNS = {
     r'\b(\w+)\s+can\s+(\w+)': 'can_{1}',  # birds can fly → can_fly (capture entity then action)
     r'\bcan\s+(\w+)\s+(\w+)': 'can_{1}',  # can birds fly → can_fly (question form)
+    r'\bdo(?:es)?\s+(\w+)\s+(fly|swim|move|walk)\b': 'can_{1}',  # do birds fly → can_fly
     r'\bcannot\s+(\w+)': 'can_{0}',  # cannot fly → can_fly
     r'\bable\s+to\s+(\w+)': 'can_{0}',  # able to swim → can_swim
     r'\bbreathe[s]?\s+(\w+)': 'breathes_{0}',  # breathe air → breathes_air
@@ -119,6 +120,7 @@ BEHAVIORAL_PATTERNS = {
     r'\bhunt[s]?\b': 'behavior_hunts',
     r'\bswim[s]?\b': 'behavior_swims',
     r'\bfly\b|flies\b': 'behavior_flies',
+    r'\bbark[s]?\b': 'behavior_barks',
     r'\bwalk[s]?\b': 'behavior_walks',
 }
 
@@ -340,6 +342,14 @@ class PredicateNormalizer:
             
             if subject and subject not in ['fly', 'swim', 'walk']:
                 entities.append(subject)
+
+        elif pred_type == 'behavior':
+            cleaned = re.sub(r'\b(do|does|did|will|can|is|are)\b', '', text_lower).strip()
+            words = cleaned.split()
+            if words:
+                subject = words[0].strip(".,!?")
+                if subject not in ['fly', 'flies', 'swim', 'swims', 'walk', 'walks', 'bark', 'barks']:
+                    entities.append(subject)
         
         elif pred_type == 'attribute':
             # "X has Y" → extract X

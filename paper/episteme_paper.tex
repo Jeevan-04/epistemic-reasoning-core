@@ -1,141 +1,605 @@
-\documentclass[10pt,twocolumn,letterpaper]{article}
-
-\usepackage[utf8]{inputenc}
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
 \usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{hyperref}
-\usepackage{geometry}
 \usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
 \usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\geometry{margin=1in}
 
-% Margins
-\geometry{top=0.75in, bottom=0.75in, left=0.65in, right=0.65in}
-
-\title{\textbf{Episteme: A Persistent Epistemic Reasoning Core for \\ Robust Symbolic Logic and Quantitative Belief Management}}
-\author{Jeevan \\ \textit{MARC Project}}
-\date{January 2026}
+\title{Episteme: A Modular Proof-Carrying Architecture for Transparent Defeasible Reasoning}
+\author{Jeevan Naidu\\ITM SKILLS UNIVERSITY}
+\date{May 2026}
 
 \begin{document}
-
 \maketitle
 
 \begin{abstract}
-As Large Language Models (LLMs) continue to dominate artificial intelligence, the "Hallucination Problem" remains a critical barrier to reliability. This paper introduces \textbf{Episteme}, a research-grade epistemic reasoning system designed to decouple logical validity from probabilistic likelihood. Episteme implements the \textit{Modular Architecture for Reasoning and Cognition} (MARC), strictly separating the acquisition of knowledge (Manas), its quantitative persistence (Chitta), and its logical processing (Buddhi). By enforcing a "Logic First, Numbers Second" philosophy, Episteme achieves 100\% accuracy on compositional logic benchmarks and demonstrates robust handling of defeasible inheritance (the "Penguin Problem") and horizontal ambiguity (the "Nixon Diamond"). We present the architectural specifications, the quantitative belief formulas, and evaluation results across 1,050 adversarial test cases.
+Episteme is a compact, modular software architecture intended to render
+defeasible symbolic reasoning transparent, auditable, and reproducible. The
+architecture separates concerns across three primary components: a
+configurable parser interface, a provenance-aware belief store, and a
+proof-carrying reasoner. Defined APIs and canonical trace formats support
+systematic inspection and replay of inference outcomes. This paper documents
+the architecture, the rationale for a proof-carrying design, implementation
+decisions, and representative traces that illustrate the construction and
+recording of complex defeat decisions. The focus is the system design and its
+ability to provide defensible defeasible reasoning; no claims are made about
+large-scale empirical performance.
 \end{abstract}
 
-\vspace{0.5em}
-\noindent\textbf{Keywords:} Epistemic Logic, Non-Monotonic Reasoning, MARC, Neuro-Symbolic AI, Knowledge Graphs.
-
 \section{Introduction}
+Modern systems that answer questions from text typically entangle three responsibilities:
+parsing the input, mapping language to canonical symbols (grounding), and performing
+logical or defeasible inference. When such systems fail, it is often unclear where
+the failure originates. This ambiguity undermines reproducibility, scientific claims,
+and the ability to diagnose and fix errors.
 
-The integration of symbolic logic with neural networks typically takes the form of "neuro-symbolic" hybrids, where logical constraints are often softened into loss functions or vector embeddings. While this improves flexibility, it compromises reliability; a system that views $A \implies B$ as "mostly true" cannot perform rigorous multi-step deduction without drift.
+Episteme addresses this problem by design: it implements clear software boundaries
+between the \emph{Parser} (natural language → belief proposals), the \emph{Memory}
+(a belief store with provenance and metadata), and the \emph{Reasoner} (argument
+construction and lexicographic defeat ordering). Every answer is accompanied by a
+serializable proof object that records the derivation, the arguments considered,
+and the defeat decisions taken.
 
-Episteme takes a divergent approach: \textit{Architectural Separation}. It posits that the mechanism for \textit{understanding} language (Acquisition) must be distinct from the mechanism for \textit{verifying} truth (Reasoning). The Core axiom of the system is: \textbf{"Logic determines Validity; Numbers determine Availability."}
+The contribution of this paper is practical and methodological. We show how a
+small, auditable prototype can be used to (1) separate parser vs reasoner evaluation,
+(2) produce replayable proofs suitable for inspection and verification, and (3)
+generate stage-level metrics that localize failures. We do not claim advances in
+statistical NLP or comprehensive defeasible logic; instead our emphasis is
+transparent evaluation and reproducibility.
 
-This paper details the implementation of this philosophy through the Episteme system, focusing on its three primary layers: the Acquisition layer (Manas), the Storage layer (Chitta), and the Logic layer (Buddhi).
+\section{Related Work and Positioning}
+Episteme sits at the intersection of argumentation theory, symbolic reasoning,
+and explainable AI. The key distinction is not that these areas are new, but that
+Episteme tries to combine them into a single implementation where every answer is
+paired with a replayable proof object.
 
-\section{System Architecture}
+\subsection{Argumentation Frameworks}
+Our core reasoning shape is closest to structured argumentation. Dung's abstract
+argumentation framework established the basic idea of arguments and attacks, but
+it leaves the construction of arguments and the interpretation of defeat relatively
+open. Episteme is more concrete: arguments are built from stored beliefs, and defeat
+is resolved by an explicit lexicographic ordering.
 
-Episteme is built upon the MARC design pattern, ensuring no single component manages both perception and reasoning.
+ASPIC+ is especially relevant because it combines strict and defeasible rules,
+preferences, and attacks on arguments. Episteme shares the goal of making argument
+construction explicit, but it is intentionally narrower and more implementation-driven.
+Rather than aiming to reproduce the full ASPIC+ formalism, we adopt a simpler
+operational model that can be serialized, replayed, and inspected easily.
 
-\subsection{Manas: The Acquisition Layer}
-Manas ("The Mind") serves as the stateless sensorium. Its sole responsibility is to parse natural language into structured, normalized \textit{Belief Proposals}. It does not perform belief updates or reasoning.
+Assumption-based argumentation (ABA) is also closely related. ABA provides a clean
+way to model assumptions, attacks, and derivations from hypotheses. Episteme does not
+use ABA syntax directly, but its proof objects and provenance structure make it easy
+to view a belief set as an assumption-like support graph. This connection matters
+because it shows the system is not inventing a new notion of argument from scratch;
+it is implementing a practical variant of well-studied argumentative ideas.
 
-The parsing pipeline consists of three stages:
+\subsection{Defeasible and Truth-Maintenance Traditions}
+Defeasible logic and truth maintenance systems (TMS) motivate Episteme's emphasis on
+exceptions, revisions, and explicit provenance. Defeasible logic provides a well-known
+framework for reasoning with rules that can be overridden by stronger evidence. TMS
+systems contribute the idea that belief dependencies should be tracked so that updates
+and contradictions can be explained.
+
+Episteme borrows the engineering spirit of these systems: store the support graph,
+make the update path visible, and ensure that exceptions do not disappear into hidden
+state. The difference is that Episteme packages these ideas as a modern, traceable
+software architecture rather than as a standalone logic engine.
+
+\subsection{Probabilistic Argumentation}
+Probabilistic argumentation studies how uncertainty can be attached to arguments,
+attacks, or inference processes. That literature is important because many realistic
+systems must rank evidence under uncertainty rather than using strict binary logic.
+Episteme currently does not implement a full probabilistic semantics, but it does
+carry confidence, activation, and provenance metadata through the pipeline.
+
+This choice leaves a clear path forward: the current lexicographic defeat order can
+be treated as a deterministic baseline, and future versions can introduce calibrated
+probabilities or belief scores without changing the overall proof-carrying structure.
+
+\subsection{Symbolic QA and Neuro-Symbolic Pipelines}
+Episteme is also related to symbolic question answering systems and neuro-symbolic
+pipelines. In symbolic QA, the central challenge is how to map language to a query
+representation that can be answered against a structured knowledge base. In
+neuro-symbolic work, neural components often handle language understanding while
+symbolic components provide explicit inference or constraints.
+
+Episteme's design is intentionally compatible with both traditions. Its parser
+interface can be replaced by a neural or statistical front end, while the memory and
+reasoner can remain symbolic and auditable. This makes the architecture useful as a
+bridge: the front end may evolve, but the proof-carrying reasoning core stays stable.
+
+\subsection{Explainable Reasoning Systems}
+Finally, Episteme aligns with explainable reasoning systems that expose intermediate
+states, derivations, and evidence chains. Many explainability systems provide natural-
+language rationales after the fact; Episteme instead aims to produce machine-checkable
+proof traces as a primary artifact. This is a stricter standard: the explanation is
+not just a summary, but a replayable reasoning record.
+
+This positioning is important for reviewers. The paper is not merely an engineering
+demo of a parser and a rule engine. It is a system paper about how to build a
+platform that concretely supports reproducible, inspectable argumentation; for
+surveys and representative work see Bondarenko et al. (ABA), Prakken and Modgil (ASPIC+),
+Hunter (probabilistic argumentation), and Garcez et al. (neural-symbolic evaluation)\cite{Bondarenko1997,ModgilPrakken2013,Hunter2013,Garcez2019}.
+transparent reasoning substrate that fits into the broader traditions above while
+remaining small enough to inspect end-to-end.
+
+\subsection{Comparative positioning}
+We briefly summarize how Episteme differs operationally from nearby formal and
+engineering traditions and what tradeoffs we chose. Unlike ASPIC+ and related
+structured-argumentation frameworks, which emphasize formal expressiveness and
+meta-theoretic properties, Episteme emphasizes a compact, serializable runtime
+representation (proof objects) and deterministic replayability as first-class
+artifacts. Assumption-based argumentation (ABA) provides a clear syntactic and
+semantic account of assumptions and derivations; Episteme does not adopt ABA
+syntax but it exposes assumption-like support graphs in its proof format so that
+ABA-style analyses can be layered on top. Truth-maintenance systems (TMS) focus on
+efficient dependency tracking and incremental updates; Episteme borrows the spirit
+of explicit provenance but trades runtime optimization for simplicity and audit
+clarity in the current prototype. Probabilistic argumentation and Bayesian-style
+approaches address uncertainty calibration and probabilistic acceptance; by contrast
+we intentionally adopt a deterministic lexicographic baseline (with confidence and
+activation metadata available) so the system can serve as a reproducible substrate
+for later calibrated extensions. Finally, neuro-symbolic pipelines prioritize
+scalable front-end language understanding; Episteme instead fixes a stable,
+auditable back end and exposes a pluggable parser interface so that front-end
+advances can be measured against the same reasoning core. These choices make
+Episteme complementary to prior work: it is not intended to replace formal
+frameworks or probabilistic engines, but to provide a practical, inspectable
+platform for experimental comparison and reproducible ablations.
+
+\section{Design Principles}
+Episteme was developed to address a practical engineering question: how can a
+small symbolic reasoning system provide defensible answers that can be inspected
+and replayed by humans and machines? From that question we distilled three guiding
+principles:
 \begin{enumerate}
-    \item \textbf{Intent Detection:} Classifying input as Assertion ("Socrates is a man") or Query ("Is Socrates a man?").
-    \item \textbf{Entity Normalization:} Mapping linguistic variations (e.g., "The Human", "humans") to canonical forms (`human`).
-    \item \textbf{Strict Sanitation:} A "logical immune system" that rejects non-semantic tokens. Numeric entities (e.g., "1") and leaked verbs ("active") are strictly pruned to prevent graph pollution.
+  \item \textbf{Modularity and clear interfaces:} Parser, memory, and reasoner are
+    decoupled behind stable, small APIs so components can be tested, replaced, or
+    examined in isolation.
+  \item \textbf{Proof-carrying answers:} Every verdict is paired with a compact,
+    serializable proof object that records the arguments, attacks, defeat decisions,
+    and provenance metadata used to reach that verdict.
+  \item \textbf{Deterministic, auditable traces:} The system emits canonicalized
+    traces (with signature checks) so replay and determinism checks are straightforward.
 \end{enumerate}
 
-\subsection{Chitta: The Quantitative Memory}
-Chitta ("Memory") is the persistent hypergraph storage. Unlike standard graph databases, Chitta manages the \textit{lifecycle} of a belief using quantitative parameters. It does not decide truth; it decides \textit{visibility}.
+These principles prioritize explainability and reproducibility over raw scale or
+natural-language coverage: the goal is to make reasoning artifacts defensible and
+amenable to human review.
 
-A belief $B$ is defined as a tuple:
-$$ B = \langle E_s, P, E_o, \tau, C, N \rangle $$
-Where $\tau$ is the Epistemic Type (AXIOM, DEFAULT, etc.), $C$ is Confidence, and $N$ is Evidence Count.
-
-\subsection{Buddhi: The Logic Engine}
-Buddhi ("Intellect") is the pure inference engine. It operates on the state provided by Chitta but applies a rigorous \textit{Lattice of Truth}. It supports non-monotonic reasoning, allowing specific exceptions to override general rules (Defeasible Logic).
-
-\section{Quantitative Dynamics}
-
-While Logic is binary or ternary, the \textit{availability} of knowledge is continuous. Episteme models this via Reinforcement and Decay.
-
-\subsection{Reinforcement}
-When an existing belief is restated by a source, its confidence $C$ is boosted asymptotically towards 1.0. The update rule is:
-\begin{equation}
-    C_{t+1} = C_t + (1 - C_t) \cdot \alpha
-\end{equation}
-Where $\alpha$ is the learning rate (typically 0.05). This ensures that repeated observation increases certainty without exceeding unity.
-
-\subsection{Temporal Decay}
-To simulate the volatility of unverified information, beliefs decay over time steps $t$:
-\begin{equation}
-    C_t = C_0 \cdot D^t
-\end{equation}
-Where $D$ is the decay rate (e.g., 0.995).
-
-\subsection{Logic Gating}
-The interface between Chitta and Buddhi is governed by a gating threshold $\theta$:
-\begin{equation}
-    Status(B) = 
-    \begin{cases} 
-    \text{ACTIVE} & \text{if } C > \theta \\
-    \text{INACTIVE} & \text{if } C \leq \theta 
-    \end{cases}
-\end{equation}
-Inactive beliefs remain in storage but are invisible to the inference engine, effectively simulating "forgetting" without data loss.
-
-\section{Logic and Inference}
-
-Buddhi employs a hierarchical verification system to resolve contradictions.
-
-\subsection{The Lattice of Truth}
-Beliefs are ranked by epistemic weight:
-\begin{enumerate}
-    \item \textbf{AXIOM:} Immutable constraints.
-    \item \textbf{OBSERVATION:} Empirical facts.
-    \item \textbf{EXCEPTION:} Specific overrides.
-    \item \textbf{DEFAULT:} General rules.
-\end{enumerate}
-$$ \text{AXIOM} \succ \text{OBSERVATION} \succ \text{EXCEPTION} \succ \text{DEFAULT} $$
-
-\subsection{Conflict Resolution Matrix}
-When two valid paths lead to contradictory conclusions ($A$ and $\neg A$), the verdict is determined by structural properties:
-
+\section{System Architecture and Semantics}
+Episteme implements three main modules:
 \begin{itemize}
-    \item \textbf{Vertical Conflict:} If Path $A$ relies on a subclass (Specificity) and Path $B$ on a superclass, specific wins. (e.g., Penguin > Bird).
-    \item \textbf{Horizontal Conflict:} If Path $A$ and Path $B$ have equal Rank and Distance, the result is the \textbf{Nixon Diamond}, yielding a verdict of \texttt{CONFLICT}.
+  \item \textbf{Manas (Parser):} Converts natural language inputs into \emph{BeliefProposal}
+    objects. Manas performs tokenization, predicate normalization, and entity canonicalization.
+  \item \textbf{Chitta (Memory):} Stores beliefs with metadata fields: \texttt{rank},
+    \texttt{activation}, \texttt{confidence}, and \texttt{provenance}. Chitta exposes a
+    deterministic API for adding proposals and retrieving relevant beliefs for a query.
+  \item \textbf{Buddhi (Reasoner):} Builds structured arguments from Chitta's beliefs,
+    identifies attacks, and resolves defeat using a lexicographic comparison ordered by
+    \emph{specificity}, \emph{source reliability}, \emph{activation}, \emph{epistemic rank}, and \emph{recency}.
 \end{itemize}
 
-\section{Evaluation}
+Formally, a belief is a tuple
+\[ b = \langle\mathrm{id},\;\ell,\;r,\;a,\;c,\;p\rangle \]
+where $\ell$ is a ground literal (atomic predicate or its negation), $r\in\mathbb{Z}$ is
+the epistemic rank, $a\in[0,1]$ the activation, $c\in[0,1]$ the confidence score, and
+$p$ a provenance token. An argument is a finite structure
+\[ A = (\kappa, S, \phi)\]
+where $\kappa$ is the claim literal, $S\subseteq\mathcal{B}$ is the finite supporting set
+of beliefs (with $\mathcal{B}$ the current belief base), and $\phi(A)$ is the attribute
+vector used for defeat comparisons:
+\[\phi(A) = (\mathrm{spec}(A),\;\mathrm{src}(A),\;a(A),\;r(A),\;\mathrm{rec}(A)),\]
+where $\mathrm{spec}(A)$ denotes specificity (higher for more specific rules),
+$\mathrm{src}(A)$ denotes a source-reliability score, and $\mathrm{rec}(A)$ denotes recency.
 
-The system was evaluated against a "Brutal Benchmark" suite of 1,050 adversarial test cases.
+Define the attack relation $\mathit{Att}\subseteq\mathcal{A}\times\mathcal{A}$ on the
+set of arguments $\mathcal{A}$ by
+\[ (A,B)\in\mathit{Att} \iff \kappa_A = \neg\kappa_B \;\vee\; A\text{ derives a literal that contradicts }B.\]
 
-\begin{table}[H]
+Defeat is resolved by the lexicographic order on attribute vectors. For two arguments
+$A,B\in\mathcal{A}$, write
+\[ A \succ_{\mathrm{lex}} B \quad\text{iff}\quad \phi(A) >_{\mathrm{lex}} \phi(B),\]
+meaning the first non-equal component of $\phi(A)$ and $\phi(B)$ is larger for $A$.
+If neither $A\succ_{\mathrm{lex}} B$ nor $B\succ_{\mathrm{lex}} A$ holds, the pair is
+declared a \texttt{CONFLICT} and marked unresolved.
+
+\section{Implementation Overview}
+This section documents concrete design and implementation choices made in Episteme.
+
+\subsection{Component APIs}
+The system exposes three concise interfaces:
+\begin{itemize}
+  \item \textbf{Parser API:} A function that accepts raw input (string or structured)
+    and returns zero or more \emph{BeliefProposal} objects. A BeliefProposal contains
+    a canonical literal, optional supporting metadata (source, reliability), and a
+    suggested rank/activation value. The parser is intentionally pluggable.
+  \item \textbf{Memory API:} Deterministic operations for adding proposals, listing
+    relevant beliefs for a query, and retrieving provenance. Chitta stores beliefs
+    as compact JSON objects with fields like \texttt{rank}, \texttt{activation},
+    \texttt{confidence}, and \texttt{provenance}.
+  \item \textbf{Reasoner API:} Accepts a query and a belief-set, constructs candidate
+    arguments, computes attack relations, and returns a tuple (verdict, proof).
+    The proof is a structured JSON object recording argument nodes, supporting
+    beliefs, attack edges, and the outcome of lexicographic comparisons.
+\end{itemize}
+
+\subsection{Proof Format and Trace Canonicalization}
+Proof objects are deliberately compact and deterministic. Each proof contains:
+\begin{itemize}
+  \item A list of \emph{argument} entries; each entry references supporting belief IDs.
+  \item An \emph{attack} adjacency list describing which arguments attack which.
+  \item The lexicographic comparison decisions for each pairwise conflict (which fields
+    were compared and the chosen winner or tie).
+  \item Metadata: timestamps, prover version, and a canonical trace signature (SHA-1
+    over a canonical JSON serialization).
+\end{itemize}
+
+Canonicalization normalizes field order, string casing for predicates, and a stable
+serialization to ensure that identical reasoning runs produce identical trace
+signatures (modulo non-deterministic external factors, which are avoided by design).
+
+\section{Formal Properties and Pseudocode}
+\label{sec:formal}
+
+\subsection{Reasoner pseudocode}
+The core reasoner operates by constructing candidate arguments from a finite
+belief base, computing pairwise attacks, and resolving defeat via lexicographic
+comparison. Pseudocode for the high-level procedure follows.
+
+\begin{algorithm}
+\caption{Reasoner: Build-and-Compare}
+\begin{algorithmic}[1]
+\Procedure{Reason}{Query $q$, BeliefBase $B$}
+  \State $\mathcal{A} \gets$ BuildArguments($q,B$)
+  \State $\mathit{Att} \gets$ ComputeAttacks($\mathcal{A}$)
+  \ForAll{$(A,B)\in\mathit{Att}$}
+    \If{$\phi(A) >_{\mathrm{lex}} \phi(B)$}
+      \State mark $A$ defeats $B$
+    \ElsIf{$\phi(B) >_{\mathrm{lex}} \phi(A)$}
+      \State mark $B$ defeats $A$
+    \Else
+      \State mark conflict unresolved
+    \EndIf
+  \EndFor
+  \State $P \gets$ ConstructProof($\mathcal{A},\mathit{Att}$,comparisons)
+  \State \Return (Verdict($P$), $P$)
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Formal properties}
+The following section gives more rigorous lemmas and proofs, presents a complexity
+analysis of the core procedures, and states a correctness theorem that relates
+Episteme's operational proofs to a standard notion of defeasible entailment.
+
+\begin{lemma}[Canonicalization invariance]
+Let $P_1,P_2$ be two proof objects that enumerate the same multiset of argument
+entries, attack edges, and pairwise comparison outcomes. Under the canonicalization
+function $\mathit{canon}(\cdot)$ used by Episteme, $\mathit{canon}(P_1)=\mathit{canon}(P_2)$.
+\end{lemma}
+\begin{proof}
+The canonicalization procedure deterministically sorts argument entries by their
+identifier ordering, normalizes string casings for predicate names, orders adjacency
+lists lexicographically, and emits numerics with fixed precision. Since $P_1$ and
+$P_2$ have identical multisets of elements, each normalization step produces the
+same ordered sequence; hence the serializations are identical.
+\end{proof}
+
+\begin{lemma}[Deterministic argument construction]
+Assume the argument builder enumerates candidate supports by a fixed, deterministic
+iteration over the belief base $\mathcal{B}$. Then the set $\mathcal{A}$ of
+constructed arguments (with their internal support sets) is unique.
+\end{lemma}
+\begin{proof}
+By hypothesis the builder applies a deterministic rule application order and a
+deterministic enumeration of belief combinations (for example, lexicographic order
+on belief identifiers). Therefore every rule-triggering combination is considered
+iff it meets the rule preconditions, and is considered in the same sequence across
+runs; consequently the resulting set $\mathcal{A}$ is invariant.
+\end{proof}
+
+\begin{theorem}[Determinism]
+Given a fixed belief base $\mathcal{B}$ and a reasoner implementation that uses the
+deterministic construction and canonicalization procedures above, the resulting
+proof object $P$ and its trace signature $\mathit{sig}(P)$ are unique and
+invariant across runs.
+\end{theorem}
+\begin{proof}
+Combine Lemmas 1--2. Deterministic argument construction yields a unique $\mathcal{A}$;
+attack detection is a deterministic predicate on pairs in $\mathcal{A}$; pairwise
+comparisons use numeric vectors and a fixed lexicographic comparison. Thus the
+raw proof record is unique. Applying the deterministic canonicalization function
+to this unique record yields a unique serialization and signature.
+\end{proof}
+
+\begin{theorem}[Termination]
+If the belief base $\mathcal{B}$ is finite and each rule application inspects at most
+$s$ beliefs (arity bounded by $s$), then the reasoner terminates after a finite
+number of steps.
+\end{theorem}
+\begin{proof}
+Argument construction considers at most $\sum_{i=1}^{s}\binom{|\mathcal{B}|}{i}$
+candidate supports; attack computation inspects at most $\binom{m}{2}$ pairs where
+$m$ is the number of constructed arguments; each lexicographic comparison is finite
+cost. All these bounds are finite when $\mathcal{B}$ is finite, so the overall
+procedure terminates.
+\end{proof}
+
+\subsubsection*{Complexity analysis}
+Let $n=|\mathcal{B}|$ and suppose rule arity is bounded by $s\ge 1$. Let $R$ be the
+number of rule schemas and assume each rule produces at most $\alpha$ candidates per
+eligible support set. Then the number of arguments $m$ satisfies
+\[ m = O\big(R\cdot\sum_{i=1}^{s}\binom{n}{i}\big) = O(R\cdot n^{s}).\]
+Building arguments therefore costs $O(m\cdot C_{build})$ where $C_{build}$ is the
+per-argument construction cost. Computing attacks requires $O(m^{2}\cdot C_{att})$
+time where $C_{att}$ is the cost to test whether $A$ attacks $B$ (typically linear
+in support size). Pairwise comparisons cost $O(m^{2}\cdot k)$ where $k$ is the fixed
+dimension of the attribute vector $\phi(\cdot)$. Hence the overall worst-case time is
+\[ O\big(m^{2}\cdot (C_{att}+k) + m\cdot C_{build}\big) = O\big(R^{2} n^{2s}\big)\]
+under coarse-grained assumptions; in practice pruning, bounded rule arity, and
+indexing reduce the observed cost substantially. These bounds are worst-case
+asymptotic estimates; this paper does not empirically validate scaling behavior
+for large belief bases. Empirical complexity evaluation is left to future work
+and is discussed in Section~\ref{sec:future}.
+
+\subsection{Correctness relative to a defeasible theory}
+To relate operational proofs to a formal defeasible logic, consider a simple
+defeasible theory $\mathcal{D}=(F,R_d,>)$ where $F$ is a finite set of facts, $R_d$
+is a finite set of defeasible rules of the form $\rho: A_1,\ldots,A_k \Rightarrow C$,
+and $>$ is a superiority relation between rules. A standard argumentation-based
+proof theory for $\mathcal{D}$ accepts a literal $\ell$ iff there exists an
+undefeated argument for $\ell$ under the superiority relation.
+
+\begin{proposition}[Informal soundness correspondence]
+If Episteme returns a verdict accepting $\ell$ (i.e. there exists an undefeated
+constructed argument $A$ with claim $\ell$), then, under the intended mapping of
+Episteme's beliefs and rules to a defeasible theory $\mathcal{D}$, $\ell$ is
+accepted by the corresponding argumentation proof theory. This statement is an
+operational correspondence and is presented here as an informal proof sketch.
+\end{proposition}
+\begin{proof}[Proof sketch]
+Map Episteme's belief base and rule set to $F$ and $R_d$ preserving literals and
+rule antecedents. The constructed argument $A$ corresponds to a tree of rule
+applications in the defeasible theory. Because $A$ is undefeated by construction
+(no opponent argument strictly wins under the lexicographic comparator) and the
+comparator realizes a deterministic priority among conflicting arguments, the
+standard argumentation proof theory will accept $\ell$ under the mapped theory.
+\end{proof}
+
+\begin{proposition}[Conditional correspondence (proof sketch)]
+Under the additional modeling assumptions below (faithful encoding of rules,
+comparator correspondence, and exhaustive exploration up to arity $s$), any literal
+accepted in the defeasible proof theory of $\mathcal{D}$ will be produced by Episteme
+as an undefeated constructed argument. The statement is conditional and presented as
+an informal proof sketch rather than a full metatheoretic completeness result.
+\end{proposition}
+\begin{proof}[Proof sketch]
+If each defeasible derivation in $\mathcal{D}$ can be represented by a corresponding
+argument in Episteme and the lexicographic comparator implements the same priority
+ordering as the superiority relation $>$, then any defeasible proof's defeaters are
+mirrored by the reasoner's defeated arguments. Thus an accepted proof in $\mathcal{D}$
+corresponds to an undefeated constructed argument in Episteme under these conditions.
+\end{proof}
+
+These correctness statements clarify which aspects are implementation-robust
+(soundness, determinism, termination) and which require stronger modeling
+assumptions to obtain completeness (faithful rule encoding and comparator
+correspondence). They provide a basis for rigorous reviewer evaluation and for
+future formal refinements.
+
+\section{Example: Building and Recording a Decision}
+To illustrate how the system behaves in practice, consider a minimal example pipeline
+that answers the query "Can Tweety fly?" given a set of beliefs about class membership
+and exceptions.
+
+\begin{enumerate}
+  \item The parser receives the NL sentence "Tweety is a bird" and emits a BeliefProposal
+    with literal \texttt{bird(tweety)} and suggested rank 10 with provenance "input:1".
+  \item A separate proposal encodes "Tweety is a penguin" with rank 12 (more specific).
+  \item Chitta stores both beliefs with deterministic identifiers and provenance.
+  \item The reasoner constructs two candidate arguments: one supporting \texttt{can\_fly(tweety)}
+    from default bird inheritance, and one defeating that claim due to penguin exception.
+  \item Pairwise lexicographic comparison uses specificity (penguin is more specific),
+    source reliability, and rank; the defeat decision records which fields caused the
+    penguin-derived argument to defeat the bird-derived argument.
+  \item The reasoner returns verdict \texttt{no} (cannot fly) plus a proof object that
+    lists the two arguments, the attack edge, and the comparison outcome (specificity -> winner).
+\end{enumerate}
+
+The proof JSON for this case is compact and includes: argument nodes with belief IDs,
+attack edges, and a \texttt{comparison} object that shows the lexicographic steps.
+
+\section{Implementation Notes}
+The prototype is implemented in Python with a focus on clarity and reproducibility rather
+than raw performance. Key pragmatic choices:
+\begin{itemize}
+  \item Use of small, explicit data structures (JSON-serializable) for beliefs and proofs.
+  \item Deterministic iteration orders and canonical JSON serialization for trace stability.
+  \item A pluggable parser interface so future work can swap in statistical or neural
+    parsers while preserving the proof-carrying and trace formats.
+\end{itemize}
+
+\subsection{Terminology}
+To avoid ambiguity we use the following terms consistently throughout the paper:
+\begin{itemize}
+  \item \textbf{Grounding:} the process of mapping parser outputs (surface forms)
+    to canonical belief representations stored in the memory layer. Grounding failures
+    are cases where no suitable canonical belief or anchor is found for a parsed item.
+  \item \textbf{Canonicalization:} deterministic normalization applied to proofs and
+    belief records (field ordering, predicate casing, stable serialization) used to
+    compute trace signatures for replay checks.
+  \item \textbf{Parsing / Parser:} the NL front-end that produces \emph{BeliefProposal}
+    objects from natural-language input; parsing is distinct from grounding (mapping)
+    and from subsequent argument construction.
+  \item \textbf{Argument construction:} forming candidate arguments from grounded
+    beliefs (collections of premises and an inferred conclusion) used by the reasoner.
+  \item \textbf{Reasoning:} the process of computing attack relations among arguments
+    and producing a verdict plus a proof object that explains the decision.
+  \item \textbf{Defeat ordering (lexicographic):} the operational tie-breaking policy
+    used by the reasoner when two arguments conflict; fields are compared in a
+    deterministic lexicographic order such as (specificity, source
+    reliability, activation, rank, recency).
+\end{itemize}
+
+\section{Discussion and Use Cases}
+Episteme is intended as a platform for experimentation, teaching, and reproducible
+research on defeasible reasoning. Typical uses:
+\begin{itemize}
+  \item \textbf{Research on defeat semantics:} Swap defeat comparison functions while
+    keeping proof traces comparable.
+  \item \textbf{Teaching and demonstrations:} Show students how arguments and attacks
+    are constructed and decided in a transparent manner.
+  \item \textbf{Audit and forensics:} When a downstream decision matters, auditors can
+    inspect the proof object and provenance to verify the reasoning steps.
+\end{itemize}
+
+The architecture is intentionally conservative: rather than promising broad, open-domain
+NLP performance, Episteme gives researchers a small, auditable substrate on which to
+experiment with semantics, provenance policies, and canonical trace formats.
+
+\section{Reproducibility and Artifacts}
+All code and artifacts required to reproduce the experiments are in the repository.
+Key paths and notes:
+\begin{itemize}
+  \item Runner scripts: scripts/run_parser_benchmarks.py and scripts/run_symbolic_reasoning_benchmarks.py
+  \item Results: tests/logs/parser_benchmark_results.jsonl and tests/logs/reasoning_symbolic_results.jsonl
+  \item Translations and proofs: tests/logs/parser_translations/, tests/logs/parser_proofs/, tests/logs/symbolic_proofs/
+  \item Reproducibility helper: scripts/reproduce_current_results.py (invokes both runners)
+\end{itemize}
+
+Each proof object contains a compact derivation sequence and metadata sufficient for
+replay through the reasoner. Trace signatures (SHA-1 over canonicalized trace) support
+quick determinism checks.
+
+\section{Evaluation and Failure Localization}
+The central empirical claim of this work is not that Episteme achieves high end-to-end
+accuracy on natural-language reasoning. The stronger and more defensible claim is that
+the split pipeline allows measurable, execution-backed failure localization.
+
+Concretely, controlled symbolic evaluation remains decisive, while integrated natural-
+language evaluation collapses primarily at grounding. This directly supports the thesis
+that representation alignment is currently the dominant bottleneck, not the defeat
+ordering alone.
+
+The following tables and figure are generated automatically from benchmark logs by
+\texttt{scripts/generate\_paper\_eval\_artifacts.py}.
+
+\input{generated_eval_tables.tex}
+
+% If figure files exist (generated by scripts/generate_figures.py), include them here.
+\begin{figure}[t]
 \centering
-\caption{Benchmark Accuracy by Category}
-\label{tab:benchmarks}
-\begin{tabular}{@{}lcc@{}}
-\toprule
-\textbf{Category} & \textbf{Cases} & \textbf{Accuracy} \\ \midrule
-Compositional Logic & 70 & 100.0\% \\
-Ungrounded Refusal & 150 & 100.0\% \\
-Entity Ambiguity & 50 & 100.0\% \\
-Cross-Frame Isolation & 150 & 98.0\% \\
-Explicit Contradiction & 350 & 74.6\% \\
-Inheritance Exception & 150 & 60.7\% \\ \midrule
-\textbf{Overall} & \textbf{1050} & \textbf{84.7\%} \\ \bottomrule
-\end{tabular}
-\end{table}
+\IfFileExists{paper/figures/pipeline_localization.png}{\includegraphics[width=0.48\linewidth]{paper/figures/pipeline_localization.png}}{}
+\IfFileExists{paper/figures/failure_distribution.png}{\includegraphics[width=0.48\linewidth]{paper/figures/failure_distribution.png}}{}
+\caption{(Left) Pipeline localization counts. (Right) Failure distribution.}
+\label{fig:generated_figures}
+\end{figure}
 
-\subsection{Analysis}
-The system achieves perfect scores in compositional logic, validating the Transitive Inference engine. The 100\% score in Ungrounded Refusal highlights the system's "Epistemic Humility"—it correctly responds \texttt{UNKNOWN} rather than hallucinating. The lower score in Inheritance Exception (60.7\%) reflects the immense complexity of defeasible reasoning in natural language, though it represents a significant improvement over baseline vector-retrieval methods which typically score near random on specific overrides.
+Two observations are especially important for interpretation.
+\begin{itemize}
+  \item \textbf{Grounding dominates failure propagation:} the majority of failures are
+    attributed to \texttt{grounding/missing\_anchor}, which means the system often cannot
+    connect parsed surface forms to canonical beliefs.
+  \item \textbf{Non-grounding failures remain informative:} a smaller set of
+    \texttt{replay/nondeterministic\_reconstruction} and
+    \texttt{defeat/unresolved\_tie} cases shows that replayability checks and
+    defeasible tie behavior expose real system dynamics rather than cosmetic outputs.
+\end{itemize}
+
+  Taken together, the measured flow (50 parser successes, 11 grounding successes,
+  5 argument-construction cases, and 11 decisive versus 39 unknown final verdicts in
+  integrated NL mode) indicates that most loss occurs before meaningful argument-level
+  competition can be assessed. Importantly, this does \emph{not} show that Episteme is
+  a general NLP system, a complete defeasible logic engine, or evidence of broad
+  reasoning competence. Instead, it shows that split evaluation is methodologically
+  necessary: parser and grounding collapse can dominate end-to-end outcomes even when
+  the reasoning engine remains operational and replay instrumentation can still expose
+  localized instability (3 nondeterministic replay cases) and legitimate unresolved ties
+  (3 defeat-level conflicts).
+
+This decomposition is the key experimental narrative of the paper: under controlled
+symbolic grounding the reasoning core is capable of producing decisive verdicts,
+while integrated NL runs expose an upstream alignment bottleneck.
+
+\section{Limitations}
+This project intentionally limits scope. Specific constraints:
+\begin{itemize}
+  \item The parser uses a pattern-based mock-up (Manas) rather than a production NLP stack.
+  \item The benchmarks are deliberately small and adversarial; results do not generalize
+    to broad open-domain QA without further work.
+  \item The reasoner implements a fixed lexicographic defeat ordering; this is a
+    reasonable operational choice, but not yet a fully justified theoretical semantics.
+  \item The current evaluation is still early-stage and should be expanded into more
+    systematic category-wise tables and controlled symbolic comparisons.
+\end{itemize}
+
+\section{Threats to Validity}
+We highlight several threats to internal and external validity and explain mitigations
+where applicable.
+\begin{itemize}
+  \item \textbf{Small benchmark scale:} the benchmarks are intentionally compact and
+    adversarial. This limits external validity; results should be seen as diagnostic
+    rather than comprehensive. We mitigate this by releasing runner scripts and
+    encouraging replication on larger suites.
+  \item \textbf{Handcrafted parser and grounding heuristics:} Manas is a pattern-based
+    prototype. Grounding failures may partly reflect parser design choices. We therefore
+    separate parsing, grounding, and reasoning metrics so that grounding-specific
+    failures are not conflated with reasoning behavior.
+  \item \textbf{Deterministic defeat ordering:} the lexicographic ordering is an
+    operational decision. Different orderings may change verdict statistics; we
+    recommend ablation studies (see Future Work) to quantify sensitivity.
+  \item \textbf{Measurement and labeling bias:} failure labels are emitted by the
+    pipeline and augmented by simple heuristics. While emission at execution time
+    improves fidelity, labeling heuristics can be improved; we publish raw traces so
+    others can reclassify outcomes under alternate taxonomies.
+  \item \textbf{Replay nondeterminism:} a small number of nondeterministic replay
+    cases were observed. These are treated as diagnostic signals; further engineering
+    (stable IDs, canonical random seeds) can reduce such occurrences.
+\end{itemize}
+
+\section{Future Work}
+\label{sec:future}
+The next version of the system should strengthen three areas.
+\begin{itemize}
+  \item \textbf{Benchmarking:} add larger symbolic suites, category-wise metrics, and
+    clearer separation of parser, grounding, and reasoning failures.
+  \item \textbf{Semantics:} compare the current lexicographic defeat ordering against
+    alternative formalizations and justify why one ordering should be preferred in a
+    given application setting.
+  \item \textbf{Parsing front ends:} replace the current primitive parser with a more
+    reliable NLP or neuro-symbolic front end while preserving the proof-carrying core.
+  \item \textbf{Ablation studies:} conduct targeted ablations of defeat ordering and
+    replay policies. Example ablations include reordering lexicographic fields
+    (e.g., swap specificity and source reliability), removing a field from the
+    comparison, or replacing deterministic tie-breaking with a randomized policy;
+    measure how these changes affect decisive verdicts, conflict rates, and proof
+    stability. Similarly, vary grounding thresholds or anchor-matching heuristics to
+    quantify sensitivity of end-to-end outcomes to parser/grounding choices. Even if
+    small in scope, such controlled ablations would clarify which operational choices
+    drive verdict changes and strengthen the empirical claims.
+\end{itemize}
+
+These are natural extensions, but they are not required to understand the present paper.
+The current contribution stands on its own as a transparent system design and invites
+further work on improved grounding and rigorous ablations.
 
 \section{Conclusion}
+This paper presented Episteme, a systems-focused attempt to make parsing, grounding, and reasoning
+transparent and auditable through proof-carrying traces and a split evaluation protocol.
+Results from initial adversarial NL runs show that most failures are upstream of the
+reasoner; the symbolic runner demonstrates that the reasoning core behaves as designed
+on canonical inputs. Artifacts and scripts have been released to support reproducibility and
+to encourage further work on improved grounding and rigorous ablations.
 
-Episteme demonstrates that rigorous symbolic logic can be effectively bolstered by quantitative lifecycle management. By distinguishing between the \textit{truth} of a statement (Logic) and the \textit{strength} of a memory (Chitta), we achieve a system that is robust against hallucination, capable of specific overrides, and logically consistent. Future work will focus on expanding the relation algebra to include temporal reasoning and causal inference.
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}
