@@ -70,6 +70,7 @@ flowchart LR
 - [docs/FORMAL_CORE.md](docs/FORMAL_CORE.md): mathematical target for beliefs, arguments, defeat ordering, and verdict semantics.
 - [docs/ALGORITHMIC_SPEC.md](docs/ALGORITHMIC_SPEC.md): algorithm sketch, complexity discussion, and known implementation gaps.
 - [paper/episteme_paper.tex](paper/episteme_paper.tex): manuscript source for the paper.
+- [paper/Episteme.pdf](paper/Episteme.pdf): compiled paper PDF for direct viewing.
 - [RESEARCH_STATUS.md](RESEARCH_STATUS.md): current truth reset, benchmark state, and known failure modes.
 - [RESEARCH_JOURNAL.md](RESEARCH_JOURNAL.md): development and experiment log.
 
@@ -105,15 +106,10 @@ python3 showcase_episteme.py
 python3 scripts/reproduce_current_results.py
 ```
 
-If you have a LaTeX toolchain installed, compile the paper from [paper/episteme_paper.tex](paper/episteme_paper.tex):
+The paper is distributed as a compiled PDF artifact; the LaTeX source is kept
+for provenance and future revision.
 
-```bash
-cd paper
-pdflatex -interaction=nonstopmode episteme_paper.tex
-bibtex episteme_paper
-pdflatex -interaction=nonstopmode episteme_paper.tex
-pdflatex -interaction=nonstopmode episteme_paper.tex
-```
+View the current paper PDF here: [paper/Episteme.pdf](paper/Episteme.pdf).
 
 ## Generated Artifacts
 
