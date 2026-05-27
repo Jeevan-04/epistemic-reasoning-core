@@ -1,9 +1,16 @@
 # Episteme
 
-Episteme is a compact, proof-carrying reasoning prototype that separates parser,
-memory, and defeasible reasoning into explicit layers. The repository is written
-as a research codebase rather than a product demo: the goal is to keep the
-architecture auditable, the formal claims bounded, and the evaluation reproducible.
+## Paper PDF
+
+The current paper PDF is available here: [paper/Episteme.pdf](paper/Episteme.pdf)
+
+GitHub will open the PDF as a file view; for direct reading, open that link.
+
+Episteme is an experimental, proof-carrying reasoning prototype that separates
+parser, memory, and defeasible reasoning into explicit layers. The repository is
+written as a research prototype rather than a product demo: the goal is to keep
+the architecture auditable, the formal claims bounded, and the evaluation
+reproducible.
 
 ## Research Boundary
 
@@ -14,6 +21,7 @@ Episteme is presented as:
 - defeasible conflict handling
 - parser/reasoner separation
 - reproducible benchmark and paper artifacts
+- exploration of explicit abstention, conflict handling, and traceable symbolic reasoning under uncertainty
 
 Episteme is not presented as:
 
